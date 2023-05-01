@@ -15,6 +15,10 @@ class MinecraftCell:
     outputs: list[int] | None
     clk_inputs: list[int] | None
 
+    @property
+    def full_name(self) -> str:
+        return self.cell_type.name + "-" + self.name
+
 
 def get_cell_type(yosys_type: dict[str, Any]) -> CellType:
     if yosys_type == "NOT" or yosys_type == "NOR":
@@ -133,6 +137,6 @@ def show_circuit(
 
     for out_cell, in_cells in out_in_map.items():
         for in_cell in in_cells:
-            g.edge(cells[out_cell].name, cells[in_cell].name)
+            g.edge(cells[out_cell].full_name, cells[in_cell].full_name)
 
     g.view()
