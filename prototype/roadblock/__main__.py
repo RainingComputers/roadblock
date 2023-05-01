@@ -23,7 +23,7 @@ hierarchy -check
 proc; opt; fsm; opt; memory; opt
 
 # low-level synthesis
-techmap; opt
+techmap;
 
 # map to target architecture
 dfflibmap -liberty {lib_file}

@@ -4,7 +4,7 @@ from typing import Any
 from graphviz import Graph
 
 
-CellType = Enum("CellTypes", ["BUFF", "NOT", "IN", "OUT"])
+CellType = Enum("CellTypes", ["BUFF", "NOT", "IN", "OUT", "DFF"])
 
 
 @dataclasses.dataclass
@@ -13,6 +13,7 @@ class MinecraftCell:
     cell_type: CellType
     inputs: list[int] | None
     outputs: list[int] | None
+    clk_inputs: list[int] | None
 
 
 def get_cell_type(yosys_type: dict[str, Any]) -> CellType:
@@ -21,6 +22,9 @@ def get_cell_type(yosys_type: dict[str, Any]) -> CellType:
 
     if yosys_type == "BUFF":
         return CellType.BUFF
+
+    if yosys_type == "DFF":
+        return CellType.DFF
 
     if yosys_type == "input":
         return CellType.IN
@@ -44,18 +48,27 @@ def yosys_to_minecraft_cells(
             except KeyError:
                 net_list[net] = [cell_id]
 
-    for yosys_name, yosys_cell in data["modules"]["adder"]["cells"].items():
+    for yosys_name, yosys_cell in data["modules"]["pc"]["cells"].items():
         cell_id = len(cells)
 
         yosys_type = yosys_cell["type"]
         yosys_connection = yosys_cell["connections"]
 
-        input_nets = yosys_connection["A"]
-        output_nets = yosys_connection["Y"]
-        if yosys_type == "NOR":
-            input_nets.extend(yosys_connection["B"])
+        if yosys_type == "DFF":
+            input_nets = yosys_connection["D"]
+            output_nets = yosys_connection["Q"]
+            clk_nets = yosys_connection["C"]
+        else:
+            input_nets = yosys_connection["A"]
+            output_nets = yosys_connection["Y"]
+            if yosys_type == "NOR":
+                input_nets.extend(yosys_connection["B"])
+
+            clk_nets = None
 
         append_to_netlist(input_nets, cell_id)
+        if clk_nets is not None:
+            append_to_netlist(clk_nets, cell_id)
 
         cells.append(
             MinecraftCell(
@@ -63,10 +76,11 @@ def yosys_to_minecraft_cells(
                 cell_type=get_cell_type(yosys_type),
                 inputs=input_nets,
                 outputs=output_nets,
+                clk_inputs=clk_nets,
             )
         )
 
-    for port_name, yosys_port in data["modules"]["adder"]["ports"].items():
+    for port_name, yosys_port in data["modules"]["pc"]["ports"].items():
         cell_id = len(cells)
 
         port_nets = yosys_port["bits"]
@@ -79,6 +93,7 @@ def yosys_to_minecraft_cells(
                     cell_type=port_type,
                     inputs=None,
                     outputs=port_nets,
+                    clk_inputs=None,
                 )
             )
         else:
@@ -90,6 +105,7 @@ def yosys_to_minecraft_cells(
                     cell_type=port_type,
                     inputs=port_nets,
                     outputs=None,
+                    clk_inputs=None,
                 )
             )
 
