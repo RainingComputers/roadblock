@@ -1,0 +1,9 @@
+.vscode/
+.venv/
+.mypy_cache/
+test.*
+*.v
+*.ys
+**/__pycache__
+*.gv
+*.pdf
