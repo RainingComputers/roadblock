@@ -61,7 +61,7 @@ print(f"INFO: 🤖 Result is {len(gates)} gates")
 
 show_circuit(out_in_map, gates)
 
-grid_dim = Dim(16, 16)
+grid_dim = Dim(32, 32)
 screen_dim = (1024, 1024)
 scale_dim = (screen_dim[0] // grid_dim.x, screen_dim[1] // grid_dim.y)
 

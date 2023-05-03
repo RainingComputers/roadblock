@@ -19,12 +19,20 @@ class MinecraftGrid:
         gates: list[MinecraftGate],
         in_out_map: dict[int, set[int]],
     ):
+        self.num_gates = len(gates)
+
         self.dim = dim
         self.out_in_map = in_out_map
         self.gates = gates
 
         self.grid = np.full((dim.x, dim.y), -1)
-        self.gate_map: list[Dim | None] = [None] * len(gates)
+        self.gate_map: list[Dim | None] = [None] * self.num_gates
+
+        self.colors = (
+            np.random.randint(50, 256, self.num_gates),
+            np.random.randint(50, 256, self.num_gates),
+            np.random.randint(50, 256, self.num_gates),
+        )
 
         for gate_id in range(len(gates)):
             self._place(gate_id)
