@@ -4,7 +4,7 @@ import json
 import pygame
 
 from roadblock.netlist import (
-    yosys_to_minecraft_cells,
+    yosys_to_minecraft_gates,
     construct_out_in_map,
     show_circuit,
 )
@@ -55,19 +55,17 @@ with open(yosys_netlist_json_file_name) as f:
     yosys_netlist = json.load(f)
 
 print("INFO: 🤖 Converting yosys netlist to minecraft netlist")
-cells, net_list = yosys_to_minecraft_cells(yosys_netlist)
-out_in_map = construct_out_in_map(cells, net_list)
-print(f"INFO: 🤖 Result is {len(cells)} cells")
+gates, net_list = yosys_to_minecraft_gates(yosys_netlist)
+out_in_map = construct_out_in_map(gates, net_list)
+print(f"INFO: 🤖 Result is {len(gates)} gates")
 
-show_circuit(out_in_map, cells)
-
+show_circuit(out_in_map, gates)
 
 grid_dim = Dim(16, 16)
 screen_dim = (1024, 1024)
 scale_dim = (screen_dim[0] // grid_dim.x, screen_dim[1] // grid_dim.y)
 
-
-grid = MinecraftGrid(grid_dim, cells, out_in_map)
+grid = MinecraftGrid(grid_dim, gates, out_in_map)
 placer = RandomPlacer()
 
 running = True

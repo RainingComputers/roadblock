@@ -4,41 +4,41 @@ import math
 import numpy as np
 
 from roadblock.dim import Dim
-from roadblock.netlist import MinecraftCell
+from roadblock.netlist import MinecraftGate
 
 
 class MinecraftGrid:
     dim: Dim
     grid: np.ndarray
-    cells: list[MinecraftCell]
+    gates: list[MinecraftGate]
     out_in_map: dict[int, set[int]]
 
     def __init__(
         self,
         dim: Dim,
-        cells: list[MinecraftCell],
+        gates: list[MinecraftGate],
         in_out_map: dict[int, set[int]],
     ):
         self.dim = dim
-        self.in_out_map = in_out_map
-        self.cells = cells
+        self.out_in_map = in_out_map
+        self.gates = gates
 
         self.grid = np.full((dim.x, dim.y), -1)
-        self.cell_map: list[Dim | None] = [None] * len(cells)
+        self.gate_map: list[Dim | None] = [None] * len(gates)
 
-        for cell_id in range(len(cells)):
-            self._place(cell_id)
+        for gate_id in range(len(gates)):
+            self._place(gate_id)
 
     def _set(self, pos: Dim, dim: Dim, value: int) -> None:
         for y in range(dim.y):
             for x in range(dim.x):
                 self.grid[pos.x + x][pos.y + y] = value
 
-    def _is_free(self, cell_id: int, pos: Dim) -> bool:
-        cell = self.cells[cell_id]
+    def _is_free(self, gate_id: int, pos: Dim) -> bool:
+        gate = self.gates[gate_id]
 
-        for y in range(cell.dim.y):
-            for x in range(cell.dim.x):
+        for y in range(gate.dim.y):
+            for x in range(gate.dim.x):
                 try:
                     if self.grid[pos.x + x][pos.y + y] != -1:
                         return False
@@ -47,83 +47,83 @@ class MinecraftGrid:
 
         return True
 
-    def _free(self, cell_id: int) -> None:
-        cell = self.cells[cell_id]
-        pos = self.cell_map[cell_id]
+    def _free(self, gate_id: int) -> None:
+        gate = self.gates[gate_id]
+        pos = self.gate_map[gate_id]
 
         if pos is None:
             return
 
-        self.cell_map[cell_id] = None
-        self._set(pos, cell.dim, -1)
+        self.gate_map[gate_id] = None
+        self._set(pos, gate.dim, -1)
 
-    def _fill(self, cell_id: int, pos: Dim) -> None:
-        cell = self.cells[cell_id]
-        self.cell_map[cell_id] = pos
-        self._set(pos, cell.dim, cell_id)
+    def _fill(self, gate_id: int, pos: Dim) -> None:
+        gate = self.gates[gate_id]
+        self.gate_map[gate_id] = pos
+        self._set(pos, gate.dim, gate_id)
 
-    def _place(self, cell_id: int) -> None:
+    def _place(self, gate_id: int) -> None:
         count = 0
 
         while True:
             if count == 1000:
-                print("ERROR: Unable to find placement for cells")
+                print("ERROR: Unable to find placement for gates")
                 raise ValueError
 
             pos = Dim(randrange(0, self.dim.x), randrange(0, self.dim.y))
 
-            if self._is_free(cell_id, pos):
-                self._fill(cell_id, pos)
+            if self._is_free(gate_id, pos):
+                self._fill(gate_id, pos)
                 break
 
             count += 1
 
     def mutate(self) -> tuple[int, Dim, int, Dim]:
-        cell_a_id = randrange(0, len(self.cells))
-        cell_b_id = randrange(0, len(self.cells))
+        gate_a_id = randrange(0, len(self.gates))
+        gate_b_id = randrange(0, len(self.gates))
 
-        if cell_a_id == cell_b_id:
+        if gate_a_id == gate_b_id:
             return self.mutate()
 
-        cell_a_pos = self.cell_map[cell_a_id]
-        cell_b_pos = self.cell_map[cell_b_id]
+        gate_a_pos = self.gate_map[gate_a_id]
+        gate_b_pos = self.gate_map[gate_b_id]
 
-        if cell_a_pos is None or cell_b_pos is None:
+        if gate_a_pos is None or gate_b_pos is None:
             return self.mutate()
 
-        self._free(cell_a_id)
-        self._free(cell_b_id)
+        self._free(gate_a_id)
+        self._free(gate_b_id)
 
-        self._place(cell_a_id)
-        self._place(cell_b_id)
+        self._place(gate_a_id)
+        self._place(gate_b_id)
 
-        return cell_a_id, cell_a_pos, cell_b_id, cell_b_pos
+        return gate_a_id, gate_a_pos, gate_b_id, gate_b_pos
 
     def undo_mutate(
-        self, cell_a_id: int, cell_a_pos: Dim, cell_b_id: int, cell_b_pos: Dim
+        self, gate_a_id: int, gate_a_pos: Dim, gate_b_id: int, gate_b_pos: Dim
     ) -> None:
-        self._free(cell_a_id)
-        self._free(cell_b_id)
+        self._free(gate_a_id)
+        self._free(gate_b_id)
 
-        if cell_a_pos is None or cell_b_pos is None:
+        if gate_a_pos is None or gate_b_pos is None:
             return
 
-        self._fill(cell_a_id, cell_a_pos)
-        self._fill(cell_b_id, cell_b_pos)
+        self._fill(gate_a_id, gate_a_pos)
+        self._fill(gate_b_id, gate_b_pos)
 
     @property
     def cost(self) -> float:
         cost = 0.0
 
-        for out_cell, in_cells in self.in_out_map.items():
-            cells_pos = [self.cell_map[out_cell]]
+        for out_gate, in_gates in self.out_in_map.items():
+            gates_pos = [self.gate_map[out_gate]]
 
-            cells_pos.extend(
-                [self.cell_map[in_cell_id] for in_cell_id in in_cells],
+            gates_pos.extend(
+                [self.gate_map[in_gate_id] for in_gate_id in in_gates],
             )
 
-            x_pos = [dim.x for dim in cells_pos if dim is not None]
-            y_pos = [dim.y for dim in cells_pos if dim is not None]
+            x_pos = [dim.x for dim in gates_pos if dim is not None]
+            y_pos = [dim.y for dim in gates_pos if dim is not None]
 
             x_max, x_min = max(x_pos), min(x_pos)
             y_max, y_min = max(y_pos), min(y_pos)

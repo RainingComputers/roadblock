@@ -5,13 +5,13 @@ from graphviz import Graph
 
 from roadblock.dim import Dim
 
-CellType = Enum("CellTypes", ["BUFF", "NOT", "IN", "OUT", "DFF"])
+GateType = Enum("GateType", ["BUFF", "NOT", "IN", "OUT", "DFF"])
 
 
 @dataclasses.dataclass
-class MinecraftCell:
+class MinecraftGate:
     name: str
-    cell_type: CellType
+    gate_type: GateType
     # TODO: These are intermediate items, not needed really
     inputs: list[int] | None
     outputs: list[int] | None
@@ -19,11 +19,11 @@ class MinecraftCell:
 
     @property
     def full_name(self) -> str:
-        return self.cell_type.name.lower() + "-" + self.name
+        return self.gate_type.name.lower() + "-" + self.name
 
     @property
     def dim(self) -> Dim:
-        if self.cell_type == CellType.NOT:
+        if self.gate_type == GateType.NOT:
             return Dim(1, 2)
 
         return Dim(1, 1)
@@ -34,51 +34,51 @@ class MinecraftCell:
 
     @property
     def out_coords(self) -> Dim:
-        if self.cell_type == CellType.NOT:
+        if self.gate_type == GateType.NOT:
             return Dim(0, 1)
 
         return Dim(0, 0)
 
 
-def get_cell_type(yosys_type: dict[str, Any]) -> CellType:
+def get_gate_type(yosys_type: dict[str, Any]) -> GateType:
     if yosys_type == "NOT" or yosys_type == "NOR":
-        return CellType.NOT
+        return GateType.NOT
 
     if yosys_type == "BUFF":
-        return CellType.BUFF
+        return GateType.BUFF
 
     if yosys_type == "DFF":
-        return CellType.DFF
+        return GateType.DFF
 
     if yosys_type == "input":
-        return CellType.IN
+        return GateType.IN
 
     if yosys_type == "output":
-        return CellType.OUT
+        return GateType.OUT
 
     raise KeyError
 
 
-def yosys_to_minecraft_cells(
+def yosys_to_minecraft_gates(
     data: dict[str, Any],
-) -> tuple[list[MinecraftCell], dict[int, list[int]]]:
-    cells: list[MinecraftCell] = []
+) -> tuple[list[MinecraftGate], dict[int, list[int]]]:
+    gates: list[MinecraftGate] = []
 
-    # Given a cell id, what cells take this net as input or clk
+    # Given a gate id, what gates take this net as input or clk
     net_list: dict[int, list[int]] = {}  # TODO: This could be a list
 
-    def append_to_netlist(nets: list[int], cell_id: int) -> None:
+    def append_to_netlist(nets: list[int], gate_id: int) -> None:
         for net in nets:
             try:
-                net_list[net].append(cell_id)
+                net_list[net].append(gate_id)
             except KeyError:
-                net_list[net] = [cell_id]
+                net_list[net] = [gate_id]
 
-    for yosys_name, yosys_cell in data["modules"]["adder"]["cells"].items():
-        cell_id = len(cells)
+    for yosys_name, yosys_gate in data["modules"]["adder"]["cells"].items():
+        gate_id = len(gates)
 
-        yosys_type = yosys_cell["type"]
-        yosys_connection = yosys_cell["connections"]
+        yosys_type = yosys_gate["type"]
+        yosys_connection = yosys_gate["connections"]
 
         if yosys_type == "DFF":
             input_nets = yosys_connection["D"]
@@ -92,14 +92,14 @@ def yosys_to_minecraft_cells(
 
             clk_nets = None
 
-        append_to_netlist(input_nets, cell_id)
+        append_to_netlist(input_nets, gate_id)
         if clk_nets is not None:
-            append_to_netlist(clk_nets, cell_id)
+            append_to_netlist(clk_nets, gate_id)
 
-        cells.append(
-            MinecraftCell(
+        gates.append(
+            MinecraftGate(
                 name=yosys_name.split("$")[-1],
-                cell_type=get_cell_type(yosys_type),
+                gate_type=get_gate_type(yosys_type),
                 inputs=input_nets,
                 outputs=output_nets,
                 clk_inputs=clk_nets,
@@ -107,53 +107,53 @@ def yosys_to_minecraft_cells(
         )
 
     for port_name, yosys_port in data["modules"]["adder"]["ports"].items():
-        cell_id = len(cells)
+        gate_id = len(gates)
 
         port_nets = yosys_port["bits"]
-        port_type = get_cell_type(yosys_port["direction"])
+        port_type = get_gate_type(yosys_port["direction"])
 
-        if port_type == CellType.IN:
-            cells.append(
-                MinecraftCell(
+        if port_type == GateType.IN:
+            gates.append(
+                MinecraftGate(
                     name=port_name,
-                    cell_type=port_type,
+                    gate_type=port_type,
                     inputs=None,
                     outputs=port_nets,
                     clk_inputs=None,
                 )
             )
         else:
-            append_to_netlist(port_nets, cell_id)
+            append_to_netlist(port_nets, gate_id)
 
-            cells.append(
-                MinecraftCell(
+            gates.append(
+                MinecraftGate(
                     name=port_name,
-                    cell_type=port_type,
+                    gate_type=port_type,
                     inputs=port_nets,
                     outputs=None,
                     clk_inputs=None,
                 )
             )
 
-    return cells, net_list
+    return gates, net_list
 
 
 def construct_out_in_map(
-    cells: list[MinecraftCell], net_list: dict[int, list[int]]
+    gates: list[MinecraftGate], net_list: dict[int, list[int]]
 ) -> dict[int, set[int]]:
-    # Given a cell, what other cells take its output as input or clock
+    # Given a gate, what other gates take its output as input or clock
     out_in_map: dict[int, set[int]] = {}
 
-    for cell_id, cell in enumerate(cells):
-        if cell.outputs is None:
+    for gate_id, gate in enumerate(gates):
+        if gate.outputs is None:
             continue
 
-        for out_net in cell.outputs:
+        for out_net in gate.outputs:
             try:
-                out_in_map[cell_id] = set(net_list[out_net])
+                out_in_map[gate_id] = set(net_list[out_net])
             except KeyError:
                 print(
-                    f"WARN: Inputs not found for {cell.name} net {out_net}",
+                    f"WARN: Inputs not found for {gate.name} net {out_net}",
                 )
 
     return out_in_map
@@ -161,12 +161,12 @@ def construct_out_in_map(
 
 def show_circuit(
     out_in_map: dict[int, set[int]],
-    cells: list[MinecraftCell],
+    gates: list[MinecraftGate],
 ) -> None:
     g = Graph()
 
-    for out_cell, in_cells in out_in_map.items():
-        for in_cell in in_cells:
-            g.edge(cells[out_cell].full_name, cells[in_cell].full_name)
+    for out_gate, in_gates in out_in_map.items():
+        for in_gate in in_gates:
+            g.edge(gates[out_gate].full_name, gates[in_gate].full_name)
 
     g.view()
