@@ -45,24 +45,24 @@ write_json {yosys_netlist_json_file_name}
 show
 """
 
-print("🤖 Generating yosys script...")
+print("INFO: 🤖 Generating yosys script")
 with open(yosys_file_name, "w") as f:
     f.write(yosys_script)
 
-print("🤖 Running yosys synthesis...")
+print("INFO: 🤖 Running yosys synthesis")
 subprocess.run(["yosys", yosys_file_name], check=True)
 with open(yosys_netlist_json_file_name) as f:
     yosys_netlist = json.load(f)
 
-print("🤖 Converting yosys netlist to minecraft netlist...")
+print("INFO: 🤖 Converting yosys netlist to minecraft netlist")
 cells, net_list = yosys_to_minecraft_cells(yosys_netlist)
 out_in_map = construct_out_in_map(cells, net_list)
-print(f"🤖 Result is {len(cells)} cells")
+print(f"INFO: 🤖 Result is {len(cells)} cells")
 
 show_circuit(out_in_map, cells)
 
 
-grid_dim = Dim(22, 22)
+grid_dim = Dim(16, 16)
 screen_dim = (1024, 1024)
 scale_dim = (screen_dim[0] // grid_dim.x, screen_dim[1] // grid_dim.y)
 

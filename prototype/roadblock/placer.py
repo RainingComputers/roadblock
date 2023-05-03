@@ -12,7 +12,6 @@ class MinecraftGrid:
     grid: np.ndarray
     cells: list[MinecraftCell]
     out_in_map: dict[int, set[int]]
-    _cost: int
 
     def __init__(
         self,
@@ -21,11 +20,11 @@ class MinecraftGrid:
         in_out_map: dict[int, set[int]],
     ):
         self.dim = dim
-        self._cost = 0
-        self.grid = np.full((dim.x, dim.y), -1)
-        self.cell_map: list[Dim | None] = [None] * len(cells)
         self.in_out_map = in_out_map
         self.cells = cells
+
+        self.grid = np.full((dim.x, dim.y), -1)
+        self.cell_map: list[Dim | None] = [None] * len(cells)
 
         for cell_id in range(len(cells)):
             self._place(cell_id)
@@ -68,6 +67,7 @@ class MinecraftGrid:
 
         while True:
             if count == 1000:
+                print("ERROR: Unable to find placement for cells")
                 raise ValueError
 
             pos = Dim(randrange(0, self.dim.x), randrange(0, self.dim.y))
@@ -144,17 +144,17 @@ class RandomPlacer:
         self.cost = math.inf
 
     def update(self, grid: MinecraftGrid) -> None:
-        print("Current cost is", self.cost, grid.num_filled)
+        print(f"INFO: Curr cost is {self.cost}")
+        print(f"INFO: {grid.num_filled} units are filled")
 
         a, a_pos, b, b_pos = grid.mutate()
-
         new_cost = grid.cost
 
-        print("New cost is", new_cost)
+        print("INFO: New cost is", new_cost)
 
         if new_cost < self.cost:
             self.cost = new_cost
-            print("Keeping mutation")
+            print("INFO: Keeping mutation")
         else:
             grid.undo_mutate(a, a_pos, b, b_pos)
-            print("Undoing mutation")
+            print("INFO: Undoing mutation")

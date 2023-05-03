@@ -12,13 +12,14 @@ CellType = Enum("CellTypes", ["BUFF", "NOT", "IN", "OUT", "DFF"])
 class MinecraftCell:
     name: str
     cell_type: CellType
+    # TODO: These are intermediate items, not needed really
     inputs: list[int] | None
     outputs: list[int] | None
     clk_inputs: list[int] | None
 
     @property
     def full_name(self) -> str:
-        return self.cell_type.name + "-" + self.name
+        return self.cell_type.name.lower() + "-" + self.name
 
     @property
     def dim(self) -> Dim:
@@ -62,7 +63,9 @@ def yosys_to_minecraft_cells(
     data: dict[str, Any],
 ) -> tuple[list[MinecraftCell], dict[int, list[int]]]:
     cells: list[MinecraftCell] = []
-    net_list: dict[int, list[int]] = {}
+
+    # Given a cell id, what cells take this net as input or clk
+    net_list: dict[int, list[int]] = {}  # TODO: This could be a list
 
     def append_to_netlist(nets: list[int], cell_id: int) -> None:
         for net in nets:
@@ -138,12 +141,20 @@ def yosys_to_minecraft_cells(
 def construct_out_in_map(
     cells: list[MinecraftCell], net_list: dict[int, list[int]]
 ) -> dict[int, set[int]]:
+    # Given a cell, what other cells take its output as input or clock
     out_in_map: dict[int, set[int]] = {}
 
     for cell_id, cell in enumerate(cells):
-        if cell.outputs is not None:
-            for out_net in cell.outputs:
+        if cell.outputs is None:
+            continue
+
+        for out_net in cell.outputs:
+            try:
                 out_in_map[cell_id] = set(net_list[out_net])
+            except KeyError:
+                print(
+                    f"WARN: Inputs not found for {cell.name} net {out_net}",
+                )
 
     return out_in_map
 
