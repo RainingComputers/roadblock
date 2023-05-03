@@ -8,6 +8,8 @@ authors = ["RainingComputers <vishnu.vish.shankar@gmail.com>"]
 python = "^3.10"
 pydantic = "^1.10.7"
 graphviz = "^0.20.1"
+pygame = "^2.4.0"
+numpy = "^1.24.3"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Any
 from graphviz import Graph
 
+from roadblock.dim import Dim
 
 CellType = Enum("CellTypes", ["BUFF", "NOT", "IN", "OUT", "DFF"])
 
@@ -18,6 +19,24 @@ class MinecraftCell:
     @property
     def full_name(self) -> str:
         return self.cell_type.name + "-" + self.name
+
+    @property
+    def dim(self) -> Dim:
+        if self.cell_type == CellType.NOT:
+            return Dim(1, 2)
+
+        return Dim(1, 1)
+
+    @property
+    def in_coords(self) -> Dim:
+        return Dim(0, 0)
+
+    @property
+    def out_coords(self) -> Dim:
+        if self.cell_type == CellType.NOT:
+            return Dim(0, 1)
+
+        return Dim(0, 0)
 
 
 def get_cell_type(yosys_type: dict[str, Any]) -> CellType:
@@ -52,7 +71,7 @@ def yosys_to_minecraft_cells(
             except KeyError:
                 net_list[net] = [cell_id]
 
-    for yosys_name, yosys_cell in data["modules"]["pc"]["cells"].items():
+    for yosys_name, yosys_cell in data["modules"]["adder"]["cells"].items():
         cell_id = len(cells)
 
         yosys_type = yosys_cell["type"]
@@ -84,7 +103,7 @@ def yosys_to_minecraft_cells(
             )
         )
 
-    for port_name, yosys_port in data["modules"]["pc"]["ports"].items():
+    for port_name, yosys_port in data["modules"]["adder"]["ports"].items():
         cell_id = len(cells)
 
         port_nets = yosys_port["bits"]

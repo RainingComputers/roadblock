@@ -1,12 +1,18 @@
 import sys
 import subprocess
 import json
+import pygame
 
 from roadblock.netlist import (
     yosys_to_minecraft_cells,
     construct_out_in_map,
     show_circuit,
 )
+
+from roadblock.placer import MinecraftGrid, RandomPlacer
+from roadblock.visual import draw_grid
+
+from roadblock.dim import Dim
 
 lib_file = sys.argv[1]
 verilog_file = sys.argv[2]
@@ -23,7 +29,7 @@ hierarchy -check
 proc; opt; fsm; opt; memory; opt
 
 # low-level synthesis
-techmap;
+techmap; opt
 
 # map to target architecture
 dfflibmap -liberty {lib_file}
@@ -51,4 +57,33 @@ with open(yosys_netlist_json_file_name) as f:
 print("🤖 Converting yosys netlist to minecraft netlist...")
 cells, net_list = yosys_to_minecraft_cells(yosys_netlist)
 out_in_map = construct_out_in_map(cells, net_list)
+print(f"🤖 Result is {len(cells)} cells")
+
 show_circuit(out_in_map, cells)
+
+
+grid_dim = Dim(22, 22)
+screen_dim = (1024, 1024)
+scale_dim = (screen_dim[0] // grid_dim.x, screen_dim[1] // grid_dim.y)
+
+
+grid = MinecraftGrid(grid_dim, cells, out_in_map)
+placer = RandomPlacer()
+
+running = True
+pygame.init()
+infoObject = pygame.display.Info()
+display = pygame.display.set_mode(screen_dim)
+pygame.display.set_caption("Roadblock place and route")
+
+
+while running:
+    draw_grid(display, grid, scale_dim)
+    pygame.display.update()
+
+    placer.update(grid)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            running = False
