@@ -1,10 +1,32 @@
 from random import randrange
 import math
+from typing import Iterator
 
 import numpy as np
 
 from roadblock.dim import Dim
 from roadblock.netlist import MinecraftGate
+
+
+def dim_pin_iterator(dim: Dim) -> Iterator[Dim]:
+    for x in range(dim.x):
+        yield Dim(x, 0)
+
+    for y in range(1, dim.y):
+        yield Dim(dim.x - 1, y)
+
+    for x in range(dim.x - 2, -1, -1):
+        yield Dim(x, dim.y - 1)
+
+    for y in range(dim.y - 2, -1, -1):
+        yield Dim(0, y)
+
+    print("ERROR: Not enough pin space")
+    raise ValueError
+
+
+def is_pin_coords(pos: Dim, dim: Dim) -> bool:
+    return pos.x == 0 or pos.y == 0 or pos.x == dim.x - 1 or pos.y == dim.y - 1
 
 
 class MinecraftGrid:
@@ -29,13 +51,19 @@ class MinecraftGrid:
         self.gate_map: list[Dim | None] = [None] * self.num_gates
 
         self.colors = (
-            np.random.randint(50, 256, self.num_gates),
-            np.random.randint(50, 256, self.num_gates),
-            np.random.randint(50, 256, self.num_gates),
+            np.random.randint(100, 256, self.num_gates),
+            np.random.randint(100, 256, self.num_gates),
+            np.random.randint(100, 256, self.num_gates),
         )
 
-        for gate_id in range(len(gates)):
-            self._place(gate_id)
+        pins = dim_pin_iterator(dim)
+
+        for gate_id, gate in enumerate(gates):
+            if gate.is_port:
+                pos = next(pins)
+                self._fill(gate_id, pos)
+            else:
+                self._place(gate_id)
 
     def _set(self, pos: Dim, dim: Dim, value: int) -> None:
         for y in range(dim.y):
@@ -43,6 +71,9 @@ class MinecraftGrid:
                 self.grid[pos.x + x][pos.y + y] = value
 
     def _is_free(self, gate_id: int, pos: Dim) -> bool:
+        if is_pin_coords(pos, self.dim):
+            return False
+
         gate = self.gates[gate_id]
 
         for y in range(gate.dim.y):
@@ -75,7 +106,7 @@ class MinecraftGrid:
 
         while True:
             if count == 1000:
-                print("ERROR: Unable to find placement for gates")
+                print("ERROR:  Unable to find placement for gates")
                 raise ValueError
 
             pos = Dim(randrange(0, self.dim.x), randrange(0, self.dim.y))
@@ -89,6 +120,9 @@ class MinecraftGrid:
     def mutate(self) -> tuple[int, Dim, int, Dim]:
         gate_a_id = randrange(0, len(self.gates))
         gate_b_id = randrange(0, len(self.gates))
+
+        if self.gates[gate_a_id].is_port or self.gates[gate_b_id].is_port:
+            return self.mutate()
 
         if gate_a_id == gate_b_id:
             return self.mutate()
@@ -151,18 +185,13 @@ class RandomPlacer:
     def __init__(self) -> None:
         self.cost = math.inf
 
-    def update(self, grid: MinecraftGrid) -> None:
-        print(f"INFO: Curr cost is {self.cost}")
-        print(f"INFO: {grid.num_filled} units are filled")
-
+    def update(self, grid: MinecraftGrid) -> float:
         a, a_pos, b, b_pos = grid.mutate()
         new_cost = grid.cost
 
-        print("INFO: New cost is", new_cost)
-
         if new_cost < self.cost:
             self.cost = new_cost
-            print("INFO: Keeping mutation")
         else:
             grid.undo_mutate(a, a_pos, b, b_pos)
-            print("INFO: Undoing mutation")
+
+        return self.cost

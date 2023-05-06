@@ -10,9 +10,10 @@ from roadblock.netlist import (
 )
 
 from roadblock.placer import MinecraftGrid, RandomPlacer
-from roadblock.visual import draw_grid
+from roadblock.visual import draw_grid, get_gate, draw_select_rectangle
 
 from roadblock.dim import Dim
+
 
 lib_file = sys.argv[1]
 verilog_file = sys.argv[2]
@@ -62,8 +63,8 @@ print(f"INFO: 🤖 Result is {len(gates)} gates")
 show_circuit(out_in_map, gates)
 
 grid_dim = Dim(32, 32)
-screen_dim = (1024, 1024)
-scale_dim = (screen_dim[0] // grid_dim.x, screen_dim[1] // grid_dim.y)
+screen_dim = (512, 512)
+scale = (screen_dim[0] // grid_dim.x, screen_dim[1] // grid_dim.y)
 
 grid = MinecraftGrid(grid_dim, gates, out_in_map)
 placer = RandomPlacer()
@@ -73,15 +74,35 @@ pygame.init()
 infoObject = pygame.display.Info()
 display = pygame.display.set_mode(screen_dim)
 pygame.display.set_caption("Roadblock place and route")
+font = pygame.font.SysFont("courier", 24, bold=1)
 
+gate_name = ""
+select_gate_id = None
+cost = placer.cost
 
 while running:
-    draw_grid(display, grid, scale_dim)
-    pygame.display.update()
-
-    placer.update(grid)
+    cost = placer.update(grid)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
             running = False
+
+        if event.type == pygame.MOUSEMOTION:
+            gate_name, select_gate_id = get_gate(grid, scale, event.pos)
+
+    draw_grid(display, grid, scale)
+
+    draw_select_rectangle(display, grid, scale, select_gate_id)
+
+    name_text = font.render(
+        gate_name, True, pygame.Color("white"), pygame.Color("black")
+    )
+
+    cost_text = font.render(
+        f"cost={str(cost)}", True, pygame.Color("white"), pygame.Color("black")
+    )
+
+    display.blit(name_text, (10, 10))
+    display.blit(cost_text, (10, screen_dim[1] - 40))
+
+    pygame.display.update()

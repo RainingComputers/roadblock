@@ -1,11 +1,15 @@
 import dataclasses
+import logging
 from enum import Enum
 from typing import Any
 from graphviz import Graph
 
 from roadblock.dim import Dim
 
-GateType = Enum("GateType", ["BUFF", "NOT", "IN", "OUT", "DFF"])
+GateType = Enum("GateType", ["BUFF", "NOT", "DFF", "IN", "OUT"])
+
+
+log = logging.Logger(__name__)
 
 
 @dataclasses.dataclass
@@ -38,6 +42,10 @@ class MinecraftGate:
             return Dim(0, 1)
 
         return Dim(0, 0)
+
+    @property
+    def is_port(self) -> bool:
+        return self.gate_type == GateType.IN or self.gate_type == GateType.OUT
 
 
 def get_gate_type(yosys_type: dict[str, Any]) -> GateType:
