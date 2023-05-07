@@ -4,7 +4,7 @@ import pygame
 
 from roadblock.yosys import run_yosys_flow
 from roadblock.dim import Dim
-from roadblock.placer import RandomPlacer
+from roadblock.placer import AnnealingPlacer
 from roadblock.grid import MinecraftGrid
 
 from roadblock import visual
@@ -26,11 +26,12 @@ display = pygame.display.set_mode((screen_dim.x, screen_dim.y))
 
 running = True
 error = False
+complete = False
 placer = None
 grid = None
 
 while running:
-    if error:
+    if error or complete:
         hud.draw_logs(display, screen_dim)
         pygame.display.update()
 
@@ -43,13 +44,17 @@ while running:
     try:
         if placer is None:
             gates, out_in_map = run_yosys_flow(verilog_file, lib_file)
-            placer = RandomPlacer()
+            placer = AnnealingPlacer(
+                init_temp=50,
+                min_temp=1,
+                max_steps=1000,
+            )
             grid = MinecraftGrid(grid_dim, gates, out_in_map)
             log.info(
                 f"{grid.num_filled} of {grid_dim.x*grid_dim.y} cells filled",
             )
         else:
-            placer.update(grid)
+            complete = placer.update(grid)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

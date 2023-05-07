@@ -1,6 +1,6 @@
 import pygame
 
-from roadblock.placer import RandomPlacer
+from roadblock.placer import Placer
 from roadblock.grid import MinecraftGrid
 from roadblock.dim import Dim
 
@@ -54,7 +54,7 @@ def draw_select_rectangle(
 def render_text(text: str, color: str = "white") -> pygame.Surface:
     font = pygame.font.SysFont("courier", FONT_SIZE, bold=1)
     font_surf = font.render(
-        " " + text,
+        " " + text + " ",
         True,
         pygame.Color(color),
         pygame.Color("black"),
@@ -81,14 +81,12 @@ def update(grid: MinecraftGrid, scale: Dim, pos: Dim) -> None:
 
 
 def draw_placer_stats(
-    placer: RandomPlacer,
+    placer: Placer,
     display: pygame.Surface,
     screen_dim: Dim,
 ) -> None:
     name_text = render_text(gate_name)
-    cost_text = render_text(
-        f"cost={placer.cost} swaps={placer.swaps} steps={placer.steps}"
-    )
+    cost_text = render_text(placer.hud_string)
 
     display.blit(cost_text, (0, 10))
     display.blit(name_text, (0, 10 + FONT_SIZE))
@@ -126,7 +124,7 @@ def draw_logs(display: pygame.Surface, screen_dim: Dim) -> None:
 def draw_hud(
     grid: MinecraftGrid,
     display: pygame.Surface,
-    placer: RandomPlacer,
+    placer: Placer,
     screen_dim: Dim,
     scale: Dim,
 ) -> None:
