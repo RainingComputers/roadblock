@@ -18,8 +18,8 @@ class RandomPlacer:
         if new_cost < self.cost:
             self.cost = new_cost
             self.swaps += 1
-            log.info(f"Move gate {a} to {a_pos}")
-            log.info(f"Move gate {b} to {b_pos}")
+            log.debug(f"Move gate {a} to {a_pos}")
+            log.debug(f"Move gate {b} to {b_pos}")
         else:
             grid.undo_mutate(a, a_pos, b, b_pos)
 

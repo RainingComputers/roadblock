@@ -100,11 +100,13 @@ def draw_logs(display: pygame.Surface, screen_dim: Dim) -> None:
     info_text = render_text(" [INFO]", "green")
     warn_text = render_text(" [WARN]", "yellow")
     error_text = render_text("[ERROR]", "red")
+    debug_text = render_text("[DEBUG]", "cyan")
 
     level_text_dict = {
         log.LogLevel.INFO: info_text,
         log.LogLevel.WARN: warn_text,
         log.LogLevel.ERROR: error_text,
+        log.LogLevel.DEBUG: debug_text,
     }
 
     for i, log_item in enumerate(logs):
