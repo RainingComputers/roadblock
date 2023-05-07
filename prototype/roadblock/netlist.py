@@ -1,14 +1,16 @@
 from typing import Any
-import dataclasses
+from dataclasses import dataclass
 from enum import Enum
 from graphviz import Graph
 
 from roadblock.dim import Dim
 
+from roadblock import log
+
 GateType = Enum("GateType", ["BUFF", "NOT", "DFF", "IN", "OUT"])
 
 
-@dataclasses.dataclass
+@dataclass
 class MinecraftGate:
     name: str
     gate_type: GateType
@@ -155,9 +157,7 @@ def construct_out_in_map(
             try:
                 out_in_map[gate_id] = net_list[out_net]
             except KeyError:
-                print(
-                    f"WARN: Inputs not found for {gate.name} net {out_net}",
-                )
+                log.warn(f"Inputs not found for {gate.name} net {out_net}")
 
     return out_in_map
 

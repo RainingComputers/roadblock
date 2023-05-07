@@ -8,6 +8,8 @@ from roadblock.netlist import (
     MinecraftGate,
 )
 
+from roadblock import log
+
 
 def get_yosys_script(
     verilog_file: str,
@@ -45,7 +47,7 @@ def run_yosys_flow(
     yosys_file_name = verilog_file + ".ys"
     yosys_netlist_json_file_name = verilog_file + ".json"
 
-    print("INFO: 🤖 Generating yosys script")
+    log.info("Generating yosys script")
     with open(yosys_file_name, "w") as f:
         f.write(
             get_yosys_script(
@@ -55,15 +57,16 @@ def run_yosys_flow(
             )
         )
 
-    print("INFO: 🤖 Running yosys synthesis")
+    log.info("Running yosys synthesis")
     subprocess.run(["yosys", yosys_file_name], check=True)
     with open(yosys_netlist_json_file_name) as f:
         yosys_netlist = json.load(f)
 
-    print("INFO: 🤖 Converting yosys netlist to minecraft netlist")
+    log.info("Converting yosys netlist to minecraft netlist")
     gates, net_list = yosys_to_minecraft_gates(yosys_netlist)
     out_in_map = construct_out_in_map(gates, net_list)
-    print(f"INFO: 🤖 Result is {len(gates)} gates")
+
+    log.info(f"Result is {len(gates)} gates")
 
     show_circuit(gates, out_in_map)
 

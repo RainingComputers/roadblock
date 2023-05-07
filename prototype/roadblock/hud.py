@@ -4,6 +4,8 @@ from roadblock.placer import RandomPlacer
 from roadblock.grid import MinecraftGrid
 from roadblock.dim import Dim
 
+from roadblock import log
+
 
 def get_gate(
     grid: MinecraftGrid,
@@ -49,8 +51,26 @@ def draw_select_rectangle(
     pygame.draw.rect(display, pygame.Color("red"), rect, 2)
 
 
+def render_text(text: str, color: str = "white") -> pygame.Surface:
+    font = pygame.font.SysFont("courier", FONT_SIZE, bold=1)
+    font_surf = font.render(
+        " " + text,
+        True,
+        pygame.Color(color),
+        pygame.Color("black"),
+    )
+    font_surf.set_alpha(FONT_ALPHA)
+
+    return font_surf
+
+
 gate_name = ""
+
 select_gate_id = None
+
+FONT_SIZE = 18
+FONT_ALPHA = 180
+LOG_LENGTH = 20
 
 
 def update(grid: MinecraftGrid, scale: Dim, pos: Dim) -> None:
@@ -63,22 +83,42 @@ def update(grid: MinecraftGrid, scale: Dim, pos: Dim) -> None:
 def draw_placer_stats(
     placer: RandomPlacer,
     display: pygame.Surface,
-    font: pygame.font.Font,
     screen_dim: Dim,
 ) -> None:
-    name_text = font.render(
-        gate_name, True, pygame.Color("white"), pygame.Color("black")
+    name_text = render_text(gate_name)
+    cost_text = render_text(
+        f"cost={placer.cost} swaps={placer.swaps} steps={placer.steps}"
     )
 
-    cost_text = font.render(
-        f"cost={placer.cost} swaps={placer.swaps} steps={placer.steps}",
-        True,
-        pygame.Color("white"),
-        pygame.Color("black"),
-    )
+    display.blit(cost_text, (0, 10))
+    display.blit(name_text, (0, 10 + FONT_SIZE))
 
-    display.blit(name_text, (10, 10))
-    display.blit(cost_text, (10, screen_dim.y - 40))
+
+def draw_logs(display: pygame.Surface, screen_dim: Dim) -> None:
+    logs = log.logs[-LOG_LENGTH:]
+
+    info_text = render_text(" [INFO]", "green")
+    warn_text = render_text(" [WARN]", "yellow")
+    error_text = render_text("[ERROR]", "red")
+
+    level_text_dict = {
+        log.LogLevel.INFO: info_text,
+        log.LogLevel.WARN: warn_text,
+        log.LogLevel.ERROR: error_text,
+    }
+
+    for i, log_item in enumerate(logs):
+        rev_i = LOG_LENGTH - i
+        y = screen_dim.y - FONT_SIZE * 2 - rev_i * FONT_SIZE
+
+        display.blit(
+            level_text_dict[log_item.level],
+            (0, y),
+        )
+
+        message_text = render_text(log_item.message)
+
+        display.blit(message_text, (5 * FONT_SIZE - 2, y))
 
 
 def draw_hud(
@@ -88,7 +128,5 @@ def draw_hud(
     screen_dim: Dim,
     scale: Dim,
 ) -> None:
-    font = pygame.font.SysFont("courier", 24, bold=1)
-
-    draw_placer_stats(placer, display, font, screen_dim)
     draw_select_rectangle(display, grid, scale, select_gate_id)
+    draw_placer_stats(placer, display, screen_dim)

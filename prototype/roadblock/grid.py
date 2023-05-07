@@ -6,6 +6,8 @@ import numpy as np
 from roadblock.dim import Dim
 from roadblock.netlist import MinecraftGate
 
+from roadblock import log
+
 
 def dim_pin_iterator(dim: Dim) -> Iterator[Dim]:
     for x in range(dim.x):
@@ -20,7 +22,7 @@ def dim_pin_iterator(dim: Dim) -> Iterator[Dim]:
     for y in range(dim.y - 2, -1, -1):
         yield Dim(0, y)
 
-    print("ERROR: Not enough pin space")
+    log.error("Not enough pin space")
     raise ValueError
 
 
@@ -122,7 +124,7 @@ class MinecraftGrid:
 
         while True:
             if count == MinecraftGrid.PLACE_RETRY_COUNT:
-                print("ERROR:  Unable to find placement for gates")
+                log.error("Unable to find placement for gates")
                 raise ValueError
 
             pos = Dim(randrange(0, self._dim.x), randrange(0, self._dim.y))
