@@ -89,13 +89,13 @@ class MinecraftGrid:
                 self._grid[pos.x + x][pos.y + y] = value
 
     def _is_free(self, gate_id: int, pos: Dim) -> bool:
-        if is_pin_coords(pos, self._dim):
-            return False
-
         gate = self._gates[gate_id]
 
         for y in range(gate.dim.y):
             for x in range(gate.dim.x):
+                if is_pin_coords(Dim(pos.x + x, pos.y + y), self._dim):
+                    return False
+
                 try:
                     if self._grid[pos.x + x][pos.y + y] != -1:
                         return False
@@ -124,7 +124,7 @@ class MinecraftGrid:
 
         while True:
             if count == MinecraftGrid.PLACE_RETRY_COUNT:
-                log.error("Unable to find placement for gates")
+                log.error(f"Unable to find placement for gate {gate_id}")
                 raise ValueError
 
             pos = Dim(randrange(0, self._dim.x), randrange(0, self._dim.y))
