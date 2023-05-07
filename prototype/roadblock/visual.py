@@ -1,7 +1,25 @@
 import pygame
 import numpy as np
 
-from roadblock.placer import MinecraftGrid
+from roadblock.dim import Dim
+from roadblock.grid import MinecraftGrid
+
+colors = None
+
+
+def get_colors(num_gates: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    global colors
+
+    if colors is not None:
+        return colors
+
+    colors = (
+        np.random.randint(100, 256, num_gates),
+        np.random.randint(100, 256, num_gates),
+        np.random.randint(100, 256, num_gates),
+    )
+
+    return colors
 
 
 def grid_to_surface(
@@ -23,62 +41,21 @@ def grid_to_surface(
 
 
 def draw_grid(
-    display: pygame.Surface, grid: MinecraftGrid, scale: tuple[int, int]
+    display: pygame.Surface,
+    grid: MinecraftGrid,
+    scale: Dim,
 ) -> None:
+    colors = get_colors(grid.num_gates)
+
     grid_surf = grid_to_surface(
-        grid.grid,
+        grid._grid,
+        # TODO: Op overloading
         (
-            grid.dim.x * scale[0],
-            grid.dim.y * scale[1],
+            grid.dim.x * scale.x,
+            grid.dim.y * scale.y,
         ),
-        grid.colors,
+        colors,
     )
     display.blit(grid_surf, (0, 0))
 
     pass
-
-
-def get_gate(
-    grid: MinecraftGrid,
-    scale: tuple[int, int],
-    pos: tuple[int, int],
-) -> tuple[str, int | None]:
-    x = pos[0] // scale[0]
-    y = pos[1] // scale[1]
-
-    if x >= grid.dim.x or x < 0 or y >= grid.dim.y or y < 0:
-        return "", None
-
-    gate_id = grid.grid[x][y]
-
-    if gate_id >= len(grid.gates) or gate_id < 0:
-        return "", None
-
-    return grid.gates[gate_id].full_name, gate_id
-
-
-def draw_select_rectangle(
-    display: pygame.Surface,
-    grid: MinecraftGrid,
-    scale: tuple[int, int],
-    gate_id: int | None,
-) -> None:
-    if gate_id is None:
-        return
-
-    pos = grid.gate_map[gate_id]
-
-    if pos is None:
-        return
-
-    gate = grid.gates[gate_id]
-    dim = gate.dim
-
-    rect = (
-        pos.x * scale[0],
-        pos.y * scale[1],
-        dim.x * scale[0],
-        dim.y * scale[1],
-    )
-
-    pygame.draw.rect(display, pygame.Color("red"), rect, 2)

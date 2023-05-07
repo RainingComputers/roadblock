@@ -1,7 +1,6 @@
-import dataclasses
-import logging
-from enum import Enum
 from typing import Any
+import dataclasses
+from enum import Enum
 from graphviz import Graph
 
 from roadblock.dim import Dim
@@ -9,14 +8,10 @@ from roadblock.dim import Dim
 GateType = Enum("GateType", ["BUFF", "NOT", "DFF", "IN", "OUT"])
 
 
-log = logging.Logger(__name__)
-
-
 @dataclasses.dataclass
 class MinecraftGate:
     name: str
     gate_type: GateType
-    # TODO: These are intermediate items, not needed really
     inputs: list[int] | None
     outputs: list[int] | None
     clk_inputs: list[int] | None
@@ -69,18 +64,18 @@ def get_gate_type(yosys_type: dict[str, Any]) -> GateType:
 
 def yosys_to_minecraft_gates(
     data: dict[str, Any],
-) -> tuple[list[MinecraftGate], dict[int, list[int]]]:
+) -> tuple[list[MinecraftGate], dict[int, set[int]]]:
     gates: list[MinecraftGate] = []
 
     # Given a gate id, what gates take this net as input or clk
-    net_list: dict[int, list[int]] = {}  # TODO: This could be a list
+    net_list: dict[int, set[int]] = {}
 
     def append_to_netlist(nets: list[int], gate_id: int) -> None:
         for net in nets:
             try:
-                net_list[net].append(gate_id)
+                net_list[net].add(gate_id)
             except KeyError:
-                net_list[net] = [gate_id]
+                net_list[net] = set([gate_id])
 
     for yosys_name, yosys_gate in data["modules"]["adder"]["cells"].items():
         gate_id = len(gates)
@@ -147,7 +142,7 @@ def yosys_to_minecraft_gates(
 
 
 def construct_out_in_map(
-    gates: list[MinecraftGate], net_list: dict[int, list[int]]
+    gates: list[MinecraftGate], net_list: dict[int, set[int]]
 ) -> dict[int, set[int]]:
     # Given a gate, what other gates take its output as input or clock
     out_in_map: dict[int, set[int]] = {}
@@ -158,7 +153,7 @@ def construct_out_in_map(
 
         for out_net in gate.outputs:
             try:
-                out_in_map[gate_id] = set(net_list[out_net])
+                out_in_map[gate_id] = net_list[out_net]
             except KeyError:
                 print(
                     f"WARN: Inputs not found for {gate.name} net {out_net}",
@@ -168,8 +163,8 @@ def construct_out_in_map(
 
 
 def show_circuit(
-    out_in_map: dict[int, set[int]],
     gates: list[MinecraftGate],
+    out_in_map: dict[int, set[int]],
 ) -> None:
     g = Graph()
 
