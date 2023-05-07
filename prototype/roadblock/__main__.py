@@ -11,7 +11,6 @@ from roadblock import visual
 from roadblock import hud
 from roadblock import log
 
-log.enable_debug()
 
 lib_file = sys.argv[1]
 verilog_file = sys.argv[2]

@@ -110,7 +110,7 @@ def draw_logs(display: pygame.Surface, screen_dim: Dim) -> None:
     }
 
     for i, log_item in enumerate(logs):
-        rev_i = LOG_LENGTH - i
+        rev_i = len(logs) - i
         y = screen_dim.y - FONT_SIZE * 2 - rev_i * FONT_SIZE
 
         display.blit(

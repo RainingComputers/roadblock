@@ -10,6 +10,7 @@ class RandomPlacer:
         self.cost = math.inf
         self.steps = 0
         self.swaps = 0
+        log.info("Random placer initialized")
 
     def update(self, grid: MinecraftGrid) -> None:
         a, a_pos, b, b_pos = grid.mutate()
