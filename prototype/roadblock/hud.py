@@ -7,6 +7,19 @@ from roadblock.dim import Dim
 from roadblock import log
 
 
+def render_text(text: str, color: str = "white") -> pygame.Surface:
+    font = pygame.font.SysFont("courier", FONT_SIZE, bold=1)
+    font_surf = font.render(
+        " " + text + " ",
+        True,
+        pygame.Color(color),
+        pygame.Color("black"),
+    )
+    font_surf.set_alpha(FONT_ALPHA)
+
+    return font_surf
+
+
 def get_gate(
     grid: MinecraftGrid,
     scale: Dim,
@@ -51,19 +64,6 @@ def draw_select_rectangle(
     pygame.draw.rect(display, pygame.Color("red"), rect, 2)
 
 
-def render_text(text: str, color: str = "white") -> pygame.Surface:
-    font = pygame.font.SysFont("courier", FONT_SIZE, bold=1)
-    font_surf = font.render(
-        " " + text + " ",
-        True,
-        pygame.Color(color),
-        pygame.Color("black"),
-    )
-    font_surf.set_alpha(FONT_ALPHA)
-
-    return font_surf
-
-
 gate_name = ""
 
 select_gate_id = None
@@ -85,11 +85,12 @@ def draw_placer_stats(
     display: pygame.Surface,
     screen_dim: Dim,
 ) -> None:
-    name_text = render_text(gate_name)
-    cost_text = render_text(placer.hud_string)
+    if gate_name != "":
+        name_text = render_text(gate_name)
+        display.blit(name_text, (0, 10 + FONT_SIZE))
 
+    cost_text = render_text(placer.hud_string)
     display.blit(cost_text, (0, 10))
-    display.blit(name_text, (0, 10 + FONT_SIZE))
 
 
 def draw_logs(display: pygame.Surface, screen_dim: Dim) -> None:

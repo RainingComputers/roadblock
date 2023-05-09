@@ -183,7 +183,7 @@ class MinecraftGrid:
         self._fill(gate_a_id, gate_a_pos)
         self._fill(gate_b_id, gate_b_pos)
 
-    def get_gate_out_net_half_perim(self, out_gate_id: int) -> float:
+    def _get_gate_out_net_half_perim(self, out_gate_id: int) -> float:
         gates_pos = [self._gate_pos_map[out_gate_id]]
 
         in_gates_ids = self._out_in_map[out_gate_id]
@@ -199,7 +199,7 @@ class MinecraftGrid:
         cost = 0.0
 
         for out_gate_id in self._out_in_map:
-            cost += self.get_gate_out_net_half_perim(out_gate_id)
+            cost += self._get_gate_out_net_half_perim(out_gate_id)
 
         return cost
 

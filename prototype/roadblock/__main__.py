@@ -4,7 +4,7 @@ import pygame
 
 from roadblock.yosys import run_yosys_flow
 from roadblock.dim import Dim
-from roadblock.placer import RandomPlacer, AnnealingPlacer
+from roadblock.placer import RandomPlacer
 from roadblock.grid import MinecraftGrid
 
 from roadblock import visual
