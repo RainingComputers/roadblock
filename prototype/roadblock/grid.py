@@ -58,6 +58,12 @@ class MinecraftGrid:
         self._grid = np.full((dim.x, dim.y), -1)
         self._gate_pos_map: list[Dim | None] = [None] * self.num_gates
 
+        self._half_perim_map: dict[int, float] = {}
+        self._undo_half_perim_map: dict[int, float] = {}
+        self._cost_cache: float | None = None
+        self._undo_cost_old = 0.0
+        self._undo_cost_new = 0.0
+
         pins = dim_pin_iterator(dim)
 
         for gate_id, gate in enumerate(gates):
@@ -163,13 +169,32 @@ class MinecraftGrid:
         if gate_a_pos is None or gate_b_pos is None:
             return self.mutate()
 
-        self._free(gate_a_id)
-        self._free(gate_b_id)
+        self._undo_cost_new = 0.0
+        self._undo_cost_old = 0.0
+        self._undo_half_perim_map.clear()
 
-        self._place(gate_a_id)
-        self._place(gate_b_id)
+        if self._cost_cache is not None:
+            self._save_affected_half_perims(gate_a_id)
+            self._save_affected_half_perims(gate_b_id)
+
+        self._replace_gate(gate_a_id)
+        self._replace_gate(gate_b_id)
+
+        if self._cost_cache is not None:
+            self._cost_cache -= self._undo_cost_old
+            self._cost_cache += self._undo_cost_new
 
         return gate_a_id, gate_a_pos, gate_b_id, gate_b_pos
+
+    def _replace_gate(self, gate_id: int) -> None:
+        if self._cost_cache is not None:
+            self._undo_cost_old += self._get_cached_part_cost(gate_id)
+
+        self._free(gate_id)
+        self._place(gate_id)
+
+        if self._cost_cache is not None:
+            self._undo_cost_new += self._get_part_cost(gate_id)
 
     def undo_mutate(
         self, gate_a_id: int, gate_a_pos: Dim, gate_b_id: int, gate_b_pos: Dim
@@ -183,7 +208,13 @@ class MinecraftGrid:
         self._fill(gate_a_id, gate_a_pos)
         self._fill(gate_b_id, gate_b_pos)
 
-    def _get_gate_out_net_half_perim(self, out_gate_id: int) -> float:
+        if self._cost_cache is not None:
+            self._cost_cache -= self._undo_cost_new
+            self._cost_cache += self._undo_cost_old
+
+            self._restore_half_perims()
+
+    def _get_gate_half_perim(self, out_gate_id: int) -> float:
         gates_pos = [self._gate_pos_map[out_gate_id]]
 
         in_gates_ids = self._out_in_map[out_gate_id]
@@ -193,19 +224,52 @@ class MinecraftGrid:
         )
 
         half_perim = get_half_perim(gates_pos)
+        self._half_perim_map[out_gate_id] = half_perim
+
         return half_perim
 
+    def _get_affected_gates(self, gate_id: int) -> list[int]:
+        ids = [gate_id]
+        ids.extend(self._in_out_map[gate_id])
+
+        return ids
+
+    def _get_cached_part_cost(self, gate_id: int) -> float:
+        ids = self._get_affected_gates(gate_id)
+        return sum([self._half_perim_map[gate_id] for gate_id in ids])
+
+    def _get_part_cost(self, gate_id: int) -> float:
+        ids = self._get_affected_gates(gate_id)
+        return sum([self._get_gate_half_perim(gate_id) for gate_id in ids])
+
+    def _save_affected_half_perims(self, gate_id: int) -> None:
+        ids = self._get_affected_gates(gate_id)
+
+        for gate_id in ids:
+            self._undo_half_perim_map[gate_id] = self._half_perim_map[gate_id]
+
+    def _restore_half_perims(self) -> None:
+        for gate_id, half_perim in self._undo_half_perim_map.items():
+            self._half_perim_map[gate_id] = half_perim
+
     def cost_clean(self) -> float:
+        log.info("Calculating clean grid cost")
+
         cost = 0.0
 
         for out_gate_id in self._out_in_map:
-            cost += self._get_gate_out_net_half_perim(out_gate_id)
+            cost += self._get_gate_half_perim(out_gate_id)
 
         return cost
 
     @property
     def cost(self) -> float:
-        return self.cost_clean()
+        if self._cost_cache is None:
+            cost_clean = self.cost_clean()
+            self._cost_cache = cost_clean
+            return cost_clean
+
+        return self._cost_cache
 
     @property
     def num_filled(self) -> int:
