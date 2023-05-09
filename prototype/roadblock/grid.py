@@ -4,7 +4,7 @@ from typing import Iterator
 import numpy as np
 
 from roadblock.dim import Dim
-from roadblock.netlist import MinecraftGate
+from roadblock.netlist import MinecraftGate, construct_in_out_map
 
 from roadblock import log
 
@@ -30,6 +30,17 @@ def is_pin_coords(pos: Dim, dim: Dim) -> bool:
     return pos.x == 0 or pos.y == 0 or pos.x == dim.x - 1 or pos.y == dim.y - 1
 
 
+def get_half_perim(gates_pos: list[Dim | None]) -> float:
+    x_pos = [dim.x for dim in gates_pos if dim is not None]
+    y_pos = [dim.y for dim in gates_pos if dim is not None]
+
+    x_max, x_min = max(x_pos), min(x_pos)
+    y_max, y_min = max(y_pos), min(y_pos)
+
+    half_perim = ((x_max - x_min) + (y_max - y_min)) / 2
+    return half_perim
+
+
 class MinecraftGrid:
     PLACE_RETRY_COUNT = 1000
 
@@ -41,10 +52,11 @@ class MinecraftGrid:
     ):
         self._dim = dim
         self._out_in_map = out_in_map
+        self._in_out_map = construct_in_out_map(out_in_map)
         self._gates = gates
 
         self._grid = np.full((dim.x, dim.y), -1)
-        self._gate_map: list[Dim | None] = [None] * self.num_gates
+        self._gate_pos_map: list[Dim | None] = [None] * self.num_gates
 
         pins = dim_pin_iterator(dim)
 
@@ -64,12 +76,12 @@ class MinecraftGrid:
         return self._dim
 
     def get_pos(self, gate_id: int) -> Dim | None:
-        return self._gate_map[gate_id]
+        return self._gate_pos_map[gate_id]
 
     def get_gate_from_id(self, gate_id: int) -> MinecraftGate:
         return self._gates[gate_id]
 
-    def get_gate_from_pos(self, pos: Dim) -> int | None:
+    def get_gate_id_from_pos(self, pos: Dim) -> int | None:
         if pos.x >= self._dim.x or pos.x < 0:
             None
 
@@ -106,17 +118,17 @@ class MinecraftGrid:
 
     def _free(self, gate_id: int) -> None:
         gate = self._gates[gate_id]
-        pos = self._gate_map[gate_id]
+        pos = self._gate_pos_map[gate_id]
 
         if pos is None:
             return
 
-        self._gate_map[gate_id] = None
+        self._gate_pos_map[gate_id] = None
         self._set(pos, gate.dim, -1)
 
     def _fill(self, gate_id: int, pos: Dim) -> None:
         gate = self._gates[gate_id]
-        self._gate_map[gate_id] = pos
+        self._gate_pos_map[gate_id] = pos
         self._set(pos, gate.dim, gate_id)
 
     def _place(self, gate_id: int) -> None:
@@ -145,8 +157,8 @@ class MinecraftGrid:
         if gate_a_id == gate_b_id:
             return self.mutate()
 
-        gate_a_pos = self._gate_map[gate_a_id]
-        gate_b_pos = self._gate_map[gate_b_id]
+        gate_a_pos = self._gate_pos_map[gate_a_id]
+        gate_b_pos = self._gate_pos_map[gate_b_id]
 
         if gate_a_pos is None or gate_b_pos is None:
             return self.mutate()
@@ -171,28 +183,29 @@ class MinecraftGrid:
         self._fill(gate_a_id, gate_a_pos)
         self._fill(gate_b_id, gate_b_pos)
 
-    @property
-    def cost(self) -> float:
+    def get_gate_out_net_half_perim(self, out_gate_id: int) -> float:
+        gates_pos = [self._gate_pos_map[out_gate_id]]
+
+        in_gates_ids = self._out_in_map[out_gate_id]
+
+        gates_pos.extend(
+            [self._gate_pos_map[in_gate_id] for in_gate_id in in_gates_ids],
+        )
+
+        half_perim = get_half_perim(gates_pos)
+        return half_perim
+
+    def cost_clean(self) -> float:
         cost = 0.0
 
-        for out_gate, in_gates in self._out_in_map.items():
-            gates_pos = [self._gate_map[out_gate]]
-
-            gates_pos.extend(
-                [self._gate_map[in_gate_id] for in_gate_id in in_gates],
-            )
-
-            x_pos = [dim.x for dim in gates_pos if dim is not None]
-            y_pos = [dim.y for dim in gates_pos if dim is not None]
-
-            x_max, x_min = max(x_pos), min(x_pos)
-            y_max, y_min = max(y_pos), min(y_pos)
-
-            half_perim = ((x_max - x_min) + (y_max - y_min)) / 2
-
-            cost += half_perim
+        for out_gate_id in self._out_in_map:
+            cost += self.get_gate_out_net_half_perim(out_gate_id)
 
         return cost
+
+    @property
+    def cost(self) -> float:
+        return self.cost_clean()
 
     @property
     def num_filled(self) -> int:

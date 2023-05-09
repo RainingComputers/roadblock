@@ -153,13 +153,33 @@ def construct_out_in_map(
         if gate.outputs is None:
             continue
 
+        inp_gates: set[int] = set()
+
         for out_net in gate.outputs:
             try:
-                out_in_map[gate_id] = net_list[out_net]
+                inp_gates = inp_gates.union(net_list[out_net])
             except KeyError:
                 log.warn(f"Inputs not found for {gate.name} net {out_net}")
 
+        out_in_map[gate_id] = inp_gates
+
     return out_in_map
+
+
+def construct_in_out_map(
+    out_in_map: dict[int, set[int]],
+) -> dict[int, set[int]]:
+    # Given a gate, what other gates' output is taken as input by this gate
+    in_out_map: dict[int, set[int]] = {}
+
+    for out_gate_id, in_gate_ids in out_in_map.items():
+        for in_gate_id in in_gate_ids:
+            try:
+                in_out_map[in_gate_id].add(out_gate_id)
+            except KeyError:
+                in_out_map[in_gate_id] = set([out_gate_id])
+
+    return in_out_map
 
 
 def show_circuit(

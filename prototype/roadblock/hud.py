@@ -16,7 +16,7 @@ def get_gate(
     x = pos.x // scale.x
     y = pos.y // scale.y
 
-    gate_id = grid.get_gate_from_pos(Dim(x, y))
+    gate_id = grid.get_gate_id_from_pos(Dim(x, y))
 
     if gate_id is None:
         return "", None
