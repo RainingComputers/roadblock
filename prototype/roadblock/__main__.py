@@ -16,7 +16,7 @@ log.enable_debug()
 
 lib_file = sys.argv[1]
 verilog_file = sys.argv[2]
-grid_dim = Dim(16, 16)
+grid_dim = Dim(32, 32)
 screen_dim = Dim(1024, 1024)
 
 # TODO: op overloading
@@ -47,9 +47,9 @@ while running:
         if placer is None:
             gates, out_in_map = run_yosys_flow(verilog_file, lib_file)
             placer = AnnealingPlacer(
-                init_temp=10,
+                init_temp=40,
                 min_temp=0,
-                max_steps=5000,
+                max_steps=100000,
             )
             # placer = RandomPlacer(max_steps=2000)
 

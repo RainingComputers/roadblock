@@ -126,6 +126,8 @@ class MinecraftGrid:
         gate = self._gates[gate_id]
         pos = self._gate_pos_map[gate_id]
 
+        log.debug(f"Remove gate {gate_id} at {pos}")
+
         if pos is None:
             return
 
@@ -149,6 +151,7 @@ class MinecraftGrid:
 
             if self._is_free(gate_id, pos):
                 self._fill(gate_id, pos)
+                log.debug(f"Place gate {gate_id} at {pos}")
                 break
 
             count += 1

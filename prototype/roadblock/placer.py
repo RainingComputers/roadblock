@@ -28,8 +28,6 @@ class Placer(ABC):
     def update_cost(
         self, new_cost: float, a: int, a_pos: Dim, b: int, b_pos: Dim
     ) -> None:
-        log.debug(f"Move {a} from old pos {a_pos}")
-        log.debug(f"Move {b} from old pos {b_pos}")
         self._swaps += 1
         self._cost = new_cost
 
@@ -141,8 +139,8 @@ class AnnealingPlacer(Placer):
     def hud_string(self) -> str:
         return (
             f"cost={self._cost} best={self._best_cost} swaps={self._swaps}"
-            + f" steps={self._steps} accept_prob={round(self._accept_prob, 3)}"
-            + f" temp={round(self._temp, 3)}"
+            + f" steps={self._steps} temp={round(self._temp, 3)}"
+            + f" accept_prob={round(self._accept_prob*100)}%"
         )
 
     def update_graph(self) -> None:
