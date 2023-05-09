@@ -46,21 +46,6 @@ class RandomPlacer(Placer):
 
         log.info("Random placer initialized")
 
-    @property
-    def hud_string(self) -> str:
-        return f"cost={self._cost} swaps={self._swaps} steps={self._steps}"
-
-    def plot_graph(self) -> None:
-        log.info("Plotting performance graph")
-
-        fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 2))
-
-        ax.plot(self._graph_costs)
-        ax.set(ylabel="Cost")
-        ax.grid(True)
-
-        plt.show(block=False)
-
     def update(self, grid: MinecraftGrid) -> bool:
         if self._steps == self._max_steps - 1:
             log.info("Random placement complete")
@@ -80,6 +65,21 @@ class RandomPlacer(Placer):
         self._graph_costs.append(self._cost)
 
         return False
+
+    @property
+    def hud_string(self) -> str:
+        return f"cost={self._cost} swaps={self._swaps} steps={self._steps}"
+
+    def plot_graph(self) -> None:
+        log.info("Plotting performance graph")
+
+        fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 2))
+
+        ax.plot(self._graph_costs)
+        ax.set(ylabel="Cost")
+        ax.grid(True)
+
+        plt.show(block=False)
 
 
 class AnnealingPlacer(Placer):
@@ -104,33 +104,6 @@ class AnnealingPlacer(Placer):
         self._graph_costs: list[float] = []
 
         log.info("Annealing placer initialized")
-
-    @property
-    def hud_string(self) -> str:
-        return (
-            f"cost={self._cost} best={self._best_cost} swaps={self._swaps}"
-            + f" steps={self._steps} accept_prob={round(self._accept_prob, 3)}"
-            + f" temp={round(self._temp, 3)}"
-        )
-
-    def plot_graph(self) -> None:
-        log.info("Plotting performance graph")
-
-        fig, [ax1, ax2, ax3] = plt.subplots(3, 1, sharex=True, figsize=(8, 6))
-
-        ax1.plot(self._graph_costs)
-        ax1.set(ylabel="Cost")
-        ax1.grid(True)
-
-        ax2.plot(self._graph_temps)
-        ax2.set(ylabel="Temp")
-        ax2.grid(True)
-
-        ax3.plot(self._graph_probs)
-        ax3.set(ylabel="Prob", xlabel="Steps")
-        ax3.grid(True)
-
-        plt.show(block=False)
 
     def update(self, grid: MinecraftGrid) -> bool:
         if self._steps == self._max_steps - 1 or self._temp < self._min_temp:
@@ -161,8 +134,37 @@ class AnnealingPlacer(Placer):
 
         self._steps += 1
 
+        self.update_graph()
+        return False
+
+    @property
+    def hud_string(self) -> str:
+        return (
+            f"cost={self._cost} best={self._best_cost} swaps={self._swaps}"
+            + f" steps={self._steps} accept_prob={round(self._accept_prob, 3)}"
+            + f" temp={round(self._temp, 3)}"
+        )
+
+    def update_graph(self) -> None:
         self._graph_costs.append(self._cost)
         self._graph_probs.append(self._accept_prob)
         self._graph_temps.append(self._temp)
 
-        return False
+    def plot_graph(self) -> None:
+        log.info("Plotting performance graph")
+
+        fig, [ax1, ax2, ax3] = plt.subplots(3, 1, sharex=True, figsize=(8, 6))
+
+        ax1.plot(self._graph_costs)
+        ax1.set(ylabel="Cost")
+        ax1.grid(True)
+
+        ax2.plot(self._graph_temps)
+        ax2.set(ylabel="Temp")
+        ax2.grid(True)
+
+        ax3.plot(self._graph_probs)
+        ax3.set(ylabel="Prob", xlabel="Steps")
+        ax3.grid(True)
+
+        plt.show(block=False)
