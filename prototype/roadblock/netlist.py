@@ -64,6 +64,23 @@ def get_gate_type(yosys_type: dict[str, Any]) -> GateType:
     raise KeyError
 
 
+def extract_nets_from_yosys(
+    yosys_type: str, yosys_connection: dict[str, Any]
+) -> tuple[list[int], list[int], list[int]]:
+    if yosys_type == "DFF":
+        input_nets = yosys_connection["D"]
+        output_nets = yosys_connection["Q"]
+        clk_nets = yosys_connection["C"]
+    else:
+        input_nets = yosys_connection["A"]
+        output_nets = yosys_connection["Y"]
+        if yosys_type == "NOR":
+            input_nets.extend(yosys_connection["B"])
+
+        clk_nets = None
+    return input_nets, clk_nets, output_nets
+
+
 def yosys_to_minecraft_gates(
     data: dict[str, Any],
 ) -> tuple[list[MinecraftGate], dict[int, set[int]]]:
@@ -85,17 +102,9 @@ def yosys_to_minecraft_gates(
         yosys_type = yosys_gate["type"]
         yosys_connection = yosys_gate["connections"]
 
-        if yosys_type == "DFF":
-            input_nets = yosys_connection["D"]
-            output_nets = yosys_connection["Q"]
-            clk_nets = yosys_connection["C"]
-        else:
-            input_nets = yosys_connection["A"]
-            output_nets = yosys_connection["Y"]
-            if yosys_type == "NOR":
-                input_nets.extend(yosys_connection["B"])
-
-            clk_nets = None
+        input_nets, clk_nets, output_nets = extract_nets_from_yosys(
+            yosys_type, yosys_connection
+        )
 
         append_to_netlist(input_nets, gate_id)
         if clk_nets is not None:
