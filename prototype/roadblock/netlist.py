@@ -83,10 +83,11 @@ def extract_nets_from_yosys(
 
 def yosys_to_minecraft_gates(
     data: dict[str, Any],
+    module: str,
 ) -> tuple[list[MinecraftGate], dict[int, set[int]]]:
     gates: list[MinecraftGate] = []
 
-    # Given a gate id, what gates take this net as input or clk
+    # Given a net id, what gates take this net as input or clk
     net_list: dict[int, set[int]] = {}
 
     def append_to_netlist(nets: list[int], gate_id: int) -> None:
@@ -96,7 +97,7 @@ def yosys_to_minecraft_gates(
             except KeyError:
                 net_list[net] = set([gate_id])
 
-    for yosys_name, yosys_gate in data["modules"]["adder"]["cells"].items():
+    for yosys_name, yosys_gate in data["modules"][module]["cells"].items():
         gate_id = len(gates)
 
         yosys_type = yosys_gate["type"]
@@ -120,7 +121,7 @@ def yosys_to_minecraft_gates(
             )
         )
 
-    for port_name, yosys_port in data["modules"]["adder"]["ports"].items():
+    for port_name, yosys_port in data["modules"][module]["ports"].items():
         gate_id = len(gates)
 
         port_nets = yosys_port["bits"]
@@ -197,8 +198,8 @@ def show_circuit(
 ) -> None:
     g = Graph()
 
-    for out_gate, in_gates in out_in_map.items():
-        for in_gate in in_gates:
-            g.edge(gates[out_gate].full_name, gates[in_gate].full_name)
+    for src_gate, dest_gates in out_in_map.items():
+        for in_gate in dest_gates:
+            g.edge(gates[src_gate].full_name, gates[in_gate].full_name)
 
     g.view()

@@ -16,11 +16,10 @@ log.enable_debug()
 
 lib_file = sys.argv[1]
 verilog_file = sys.argv[2]
-grid_dim = Dim(32, 32)
+module = "adder"
+grid_dim = Dim(16, 16)
 screen_dim = Dim(1024, 1024)
-
-# TODO: op overloading
-scale = Dim(screen_dim.x // grid_dim.x, screen_dim.y // grid_dim.y)
+scale = screen_dim // grid_dim
 
 pygame.init()
 pygame.display.set_caption("Roadblock")
@@ -33,7 +32,7 @@ placer = None
 grid = None
 
 while running:
-    if error or complete:
+    if error:
         hud.draw_logs(display, screen_dim)
         pygame.display.update()
 
@@ -45,11 +44,11 @@ while running:
 
     try:
         if placer is None:
-            gates, out_in_map = run_yosys_flow(verilog_file, lib_file)
+            gates, out_in_map = run_yosys_flow(verilog_file, lib_file, module)
             placer = AnnealingPlacer(
-                init_temp=40,
+                init_temp=10,
                 min_temp=0,
-                max_steps=100000,
+                max_steps=5000,
             )
             # placer = RandomPlacer(max_steps=2000)
 
@@ -58,7 +57,8 @@ while running:
                 f"{grid.num_filled} of {grid_dim.x*grid_dim.y} cells filled",
             )
         else:
-            complete = placer.update(grid)
+            if not complete:
+                complete = placer.update(grid)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

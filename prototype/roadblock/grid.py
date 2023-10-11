@@ -89,7 +89,7 @@ class MinecraftGrid:
 
     def get_gate_id_from_pos(self, pos: Dim) -> int | None:
         if pos.x >= self._dim.x or pos.x < 0:
-            None
+            return None
 
         if pos.y >= self._dim.y or pos.y < 0:
             return None
@@ -170,7 +170,8 @@ class MinecraftGrid:
         gate_b_pos = self._gate_pos_map[gate_b_id]
 
         if gate_a_pos is None or gate_b_pos is None:
-            return self.mutate()
+            log.error("Corrupt state found while trying to mutate grid")
+            raise ValueError
 
         self._undo_cost_new = 0.0
         self._undo_cost_old = 0.0
@@ -180,8 +181,8 @@ class MinecraftGrid:
             self._save_affected_half_perims(gate_a_id)
             self._save_affected_half_perims(gate_b_id)
 
-        self._replace_gate(gate_a_id)
-        self._replace_gate(gate_b_id)
+        self._move_gate(gate_a_id)
+        self._move_gate(gate_b_id)
 
         if self._cost_cache is not None:
             self._cost_cache -= self._undo_cost_old
@@ -189,7 +190,7 @@ class MinecraftGrid:
 
         return gate_a_id, gate_a_pos, gate_b_id, gate_b_pos
 
-    def _replace_gate(self, gate_id: int) -> None:
+    def _move_gate(self, gate_id: int) -> None:
         if self._cost_cache is not None:
             self._undo_cost_old += self._get_cached_part_cost(gate_id)
 
@@ -204,9 +205,6 @@ class MinecraftGrid:
     ) -> None:
         self._free(gate_a_id)
         self._free(gate_b_id)
-
-        if gate_a_pos is None or gate_b_pos is None:
-            return
 
         self._fill(gate_a_id, gate_a_pos)
         self._fill(gate_b_id, gate_b_pos)

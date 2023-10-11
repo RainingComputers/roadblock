@@ -25,11 +25,9 @@ def get_gate(
     scale: Dim,
     pos: Dim,
 ) -> tuple[str, int | None]:
-    # TODO: Op overloading
-    x = pos.x // scale.x
-    y = pos.y // scale.y
+    gate_pos = pos // scale
 
-    gate_id = grid.get_gate_id_from_pos(Dim(x, y))
+    gate_id = grid.get_gate_id_from_pos(gate_pos)
 
     if gate_id is None:
         return "", None
@@ -65,7 +63,6 @@ def draw_select_rectangle(
 
 
 gate_name = ""
-
 select_gate_id = None
 
 FONT_SIZE = 18

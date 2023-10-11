@@ -24,7 +24,7 @@ def get_colors(num_gates: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 def grid_to_surface(
     arr: np.ndarray,
-    scale: tuple[int, int],
+    scale: Dim,
     colors: tuple[np.ndarray, np.ndarray, np.ndarray],
 ) -> pygame.Surface:
     r_vals, g_vals, b_vals = colors
@@ -35,7 +35,7 @@ def grid_to_surface(
     im = np.dstack((r_grid, g_grid, b_grid))
 
     surf = pygame.surfarray.make_surface(im)
-    surf = pygame.transform.scale(surf, scale)
+    surf = pygame.transform.scale(surf, (scale.x, scale.y))
 
     return surf
 
@@ -49,11 +49,7 @@ def draw_grid(
 
     grid_surf = grid_to_surface(
         grid._grid,
-        # TODO: Op overloading
-        (
-            grid.dim.x * scale.x,
-            grid.dim.y * scale.y,
-        ),
+        grid.dim * scale,
         colors,
     )
     display.blit(grid_surf, (0, 0))

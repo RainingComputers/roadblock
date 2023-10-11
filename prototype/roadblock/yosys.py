@@ -42,7 +42,7 @@ write_json {yosys_netlist_json_file_name}
 
 
 def run_yosys_flow(
-    verilog_file: str, lib_file: str
+    verilog_file: str, lib_file: str, module: str
 ) -> tuple[list[MinecraftGate], dict[int, set[int]]]:
     yosys_file_name = verilog_file + ".ys"
     yosys_netlist_json_file_name = verilog_file + ".json"
@@ -63,7 +63,7 @@ def run_yosys_flow(
         yosys_netlist = json.load(f)
 
     log.info("Converting yosys netlist to minecraft netlist")
-    gates, net_list = yosys_to_minecraft_gates(yosys_netlist)
+    gates, net_list = yosys_to_minecraft_gates(yosys_netlist, module)
     out_in_map = construct_out_in_map(gates, net_list)
 
     log.info(f"Result is {len(gates)} gates")
