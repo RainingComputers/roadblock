@@ -196,7 +196,7 @@ def construct_out_in_map(
 def construct_in_out_map(
     out_in_map: dict[int, set[int]],
 ) -> dict[int, set[int]]:
-    # Given a gate, what other gates' output is taken as input by this gate
+    # What gates feed into the given gate
     in_out_map: dict[int, set[int]] = {}
 
     for out_gate_id, in_gate_ids in out_in_map.items():
