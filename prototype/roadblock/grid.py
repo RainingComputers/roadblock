@@ -1,5 +1,5 @@
 from random import randrange
-from typing import Iterator
+from typing import Iterator, ItemsView
 
 import numpy as np
 
@@ -74,6 +74,10 @@ class MinecraftGrid:
                 self._place(gate_id)
 
     @property
+    def out_in_map(self) -> ItemsView[int, set[int]]:
+        return self._out_in_map.items()
+
+    @property
     def num_gates(self) -> int:
         return len(self._gates)
 
@@ -83,6 +87,15 @@ class MinecraftGrid:
 
     def get_pos(self, gate_id: int) -> Dim | None:
         return self._gate_pos_map[gate_id]
+
+    def get_pos_expect(self, gate_id: int) -> Dim:
+        pos = self._gate_pos_map[gate_id]
+
+        if pos is None:
+            log.error(f"Gate {gate_id} has not been placed yey")
+            raise ValueError
+
+        return pos
 
     def get_gate_from_id(self, gate_id: int) -> MinecraftGate:
         return self._gates[gate_id]

@@ -34,6 +34,10 @@ class Placer(ABC):
         if new_cost < self._best_cost:
             self._best_cost = new_cost
 
+    @abstractmethod
+    def plot_graph(self) -> None:
+        pass
+
 
 class RandomPlacer(Placer):
     def __init__(self, max_steps: int) -> None:

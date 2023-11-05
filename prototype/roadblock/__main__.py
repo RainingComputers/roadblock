@@ -14,11 +14,13 @@ from roadblock import log
 
 log.enable_debug()
 
+#  python3 -m roadblock roadblock_cells.lib test.v adder 16 1024
+
 lib_file = sys.argv[1]
 verilog_file = sys.argv[2]
-module = "adder"
-grid_dim = Dim(16, 16)
-screen_dim = Dim(1024, 1024)
+module = sys.argv[3]
+grid_dim = Dim(int(sys.argv[4]), int(sys.argv[4]))
+screen_dim = Dim(int(sys.argv[5]), int(sys.argv[5]))
 scale = screen_dim // grid_dim
 
 pygame.init()
@@ -71,7 +73,7 @@ while running:
         visual.draw_grid(display, grid, scale)
         hud.draw_hud(grid, display, placer, screen_dim, scale)
 
-    except ValueError:
+    except (ValueError, KeyError):
         error = True
 
     hud.draw_logs(display, screen_dim)

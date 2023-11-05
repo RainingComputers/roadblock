@@ -7,6 +7,7 @@ from roadblock.dim import Dim
 
 from roadblock import log
 
+
 GateType = Enum("GateType", ["BUFF", "NOT", "DFF", "IN", "OUT"])
 
 
@@ -14,9 +15,9 @@ GateType = Enum("GateType", ["BUFF", "NOT", "DFF", "IN", "OUT"])
 class MinecraftGate:
     name: str
     gate_type: GateType
-    inputs: list[int] | None
-    outputs: list[int] | None
-    clk_inputs: list[int] | None
+    inputs: set[int]
+    outputs: set[int]
+    clk_inputs: set[int]
 
     @property
     def full_name(self) -> str:
@@ -31,21 +32,33 @@ class MinecraftGate:
 
     @property
     def in_coords(self) -> Dim:
+        if self.gate_type == GateType.IN:
+            log.error(f"Expected in coords for {self.gate_type}")
+            raise ValueError
+
         return Dim(0, 0)
 
     @property
     def out_coords(self) -> Dim:
+        if self.gate_type == GateType.OUT:
+            log.error(f"Expected out coords for {self.gate_type}")
+            raise ValueError
+
         if self.gate_type == GateType.NOT:
             return Dim(0, 1)
 
         return Dim(0, 0)
 
     @property
+    def clk_coords(self) -> Dim:
+        raise ValueError(f"Expected clk coords for {self.gate_type}")
+
+    @property
     def is_port(self) -> bool:
         return self.gate_type == GateType.IN or self.gate_type == GateType.OUT
 
 
-def get_gate_type(yosys_type: dict[str, Any]) -> GateType:
+def get_gate_type(yosys_type: str) -> GateType:
     if yosys_type == "NOT" or yosys_type == "NOR":
         return GateType.NOT
 
@@ -61,24 +74,32 @@ def get_gate_type(yosys_type: dict[str, Any]) -> GateType:
     if yosys_type == "output":
         return GateType.OUT
 
+    log.error(f"Unexpected yosys gate type {yosys_type}")
     raise KeyError
 
 
-def extract_nets_from_yosys(
+def extract_nets_from_yosys_cell(
     yosys_type: str, yosys_connection: dict[str, Any]
-) -> tuple[list[int], list[int], list[int]]:
-    if yosys_type == "DFF":
-        input_nets = yosys_connection["D"]
-        output_nets = yosys_connection["Q"]
-        clk_nets = yosys_connection["C"]
-    else:
-        input_nets = yosys_connection["A"]
-        output_nets = yosys_connection["Y"]
-        if yosys_type == "NOR":
-            input_nets.extend(yosys_connection["B"])
+) -> tuple[set[int], set[int], set[int]]:
+    input_nets = []
+    output_nets = []
+    clk_nets = []
 
-        clk_nets = None
-    return input_nets, clk_nets, output_nets
+    try:
+        if yosys_type == "DFF":
+            input_nets = yosys_connection["D"]
+            output_nets = yosys_connection["Q"]
+            clk_nets = yosys_connection["C"]
+        else:
+            input_nets = yosys_connection["A"]
+            output_nets = yosys_connection["Y"]
+            if yosys_type == "NOR":
+                input_nets.extend(yosys_connection["B"])
+    except KeyError:
+        log.error("Yosys netlist invalid format")
+        raise
+
+    return set(input_nets), set(clk_nets), set(output_nets)
 
 
 def yosys_to_minecraft_gates(
@@ -90,7 +111,7 @@ def yosys_to_minecraft_gates(
     # Given a net id, what gates take this net as input or clk
     net_list: dict[int, set[int]] = {}
 
-    def append_to_netlist(nets: list[int], gate_id: int) -> None:
+    def append_to_netlist(nets: set[int], gate_id: int) -> None:
         for net in nets:
             try:
                 net_list[net].add(gate_id)
@@ -103,13 +124,12 @@ def yosys_to_minecraft_gates(
         yosys_type = yosys_gate["type"]
         yosys_connection = yosys_gate["connections"]
 
-        input_nets, clk_nets, output_nets = extract_nets_from_yosys(
+        input_nets, clk_nets, output_nets = extract_nets_from_yosys_cell(
             yosys_type, yosys_connection
         )
 
         append_to_netlist(input_nets, gate_id)
-        if clk_nets is not None:
-            append_to_netlist(clk_nets, gate_id)
+        append_to_netlist(clk_nets, gate_id)
 
         gates.append(
             MinecraftGate(
@@ -124,29 +144,29 @@ def yosys_to_minecraft_gates(
     for port_name, yosys_port in data["modules"][module]["ports"].items():
         gate_id = len(gates)
 
-        port_nets = yosys_port["bits"]
-        port_type = get_gate_type(yosys_port["direction"])
+        gate_type = get_gate_type(yosys_port["direction"])
+        gate_nets = yosys_port["bits"]
 
-        if port_type == GateType.IN:
+        if gate_type == GateType.IN:
             gates.append(
                 MinecraftGate(
                     name=port_name,
-                    gate_type=port_type,
-                    inputs=None,
-                    outputs=port_nets,
-                    clk_inputs=None,
+                    gate_type=gate_type,
+                    inputs=set(),
+                    outputs=gate_nets,
+                    clk_inputs=set(),
                 )
             )
         else:
-            append_to_netlist(port_nets, gate_id)
+            append_to_netlist(gate_nets, gate_id)
 
             gates.append(
                 MinecraftGate(
                     name=port_name,
-                    gate_type=port_type,
-                    inputs=port_nets,
-                    outputs=None,
-                    clk_inputs=None,
+                    gate_type=gate_type,
+                    inputs=gate_nets,
+                    outputs=set(),
+                    clk_inputs=set(),
                 )
             )
 
@@ -160,9 +180,6 @@ def construct_out_in_map(
     out_in_map: dict[int, set[int]] = {}
 
     for gate_id, gate in enumerate(gates):
-        if gate.outputs is None:
-            continue
-
         inp_gates: set[int] = set()
 
         for out_net in gate.outputs:
