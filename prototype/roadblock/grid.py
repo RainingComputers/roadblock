@@ -51,7 +51,7 @@ def get_affected_gates(
     return ids
 
 
-class MinecraftGrid:
+class GatesGrid:
     PLACE_RETRY_COUNT = 1000
 
     def __init__(
@@ -77,7 +77,7 @@ class MinecraftGrid:
             else:
                 self._place(gate_id)
 
-        self._cost_cache = MinecraftGridCostCache(out_in_map, self._gate_pos_map)
+        self._cost_cache = GatesGridCostCache(out_in_map, self._gate_pos_map)
 
     @property
     def out_in_map(self) -> ItemsView[int, set[int]]:
@@ -217,7 +217,7 @@ class MinecraftGrid:
         count = 0
 
         while True:
-            if count == MinecraftGrid.PLACE_RETRY_COUNT:
+            if count == GatesGrid.PLACE_RETRY_COUNT:
                 log.error(f"Unable to find placement for gate {gate_id}")
                 raise ValueError
 
@@ -231,7 +231,7 @@ class MinecraftGrid:
             count += 1
 
 
-class MinecraftGridCostCache:
+class GatesGridCostCache:
     def __init__(
         self, out_in_map: dict[int, set[int]], gate_pos_map: list[Dim | None]
     ) -> None:

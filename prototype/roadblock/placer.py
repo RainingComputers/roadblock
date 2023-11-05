@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
 
-from roadblock.grid import MinecraftGrid
+from roadblock.grid import GatesGrid
 from roadblock.dim import Dim
 from roadblock import log
 
@@ -22,7 +22,7 @@ class Placer(ABC):
         pass
 
     @abstractmethod
-    def update(self, grid: MinecraftGrid) -> bool:
+    def update(self, grid: GatesGrid) -> bool:
         pass
 
     def _update_cost(
@@ -48,7 +48,7 @@ class RandomPlacer(Placer):
 
         log.info("Random placer initialized")
 
-    def update(self, grid: MinecraftGrid) -> bool:
+    def update(self, grid: GatesGrid) -> bool:
         if self._steps >= self._max_steps - 1:
             log.info("Random placement complete")
             self.plot_graph()
@@ -107,7 +107,7 @@ class AnnealingPlacer(Placer):
 
         log.info("Annealing placer initialized")
 
-    def update(self, grid: MinecraftGrid) -> bool:
+    def update(self, grid: GatesGrid) -> bool:
         if self._steps >= self._max_steps - 1 or self._temp < self._min_temp:
             log.info("Annealing complete")
             self.plot_graph()

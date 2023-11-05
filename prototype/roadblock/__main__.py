@@ -5,7 +5,7 @@ import pygame
 from roadblock.yosys import run_yosys_flow
 from roadblock.dim import Dim
 from roadblock.placer import AnnealingPlacer
-from roadblock.grid import MinecraftGrid
+from roadblock.grid import GatesGrid
 
 from roadblock import visual
 from roadblock import hud
@@ -54,7 +54,7 @@ while running:
             )
             # placer = RandomPlacer(max_steps=2000)
 
-            grid = MinecraftGrid(grid_dim, gates, out_in_map)
+            grid = GatesGrid(grid_dim, gates, out_in_map)
             log.info(
                 f"{grid.num_filled} of {grid_dim.x*grid_dim.y} cells filled",
             )

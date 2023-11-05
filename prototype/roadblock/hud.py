@@ -1,7 +1,7 @@
 import pygame
 
 from roadblock.placer import Placer
-from roadblock.grid import MinecraftGrid
+from roadblock.grid import GatesGrid
 from roadblock.dim import Dim
 
 from roadblock import log
@@ -21,7 +21,7 @@ def render_text(text: str, color: str = "white") -> pygame.Surface:
 
 
 def get_gate(
-    grid: MinecraftGrid,
+    grid: GatesGrid,
     scale: Dim,
     pos: Dim,
 ) -> tuple[str, int | None]:
@@ -37,7 +37,7 @@ def get_gate(
 
 def draw_select_rectangle(
     display: pygame.Surface,
-    grid: MinecraftGrid,
+    grid: GatesGrid,
     scale: Dim,
     gate_id: int | None,
 ) -> None:
@@ -71,7 +71,7 @@ FONT_ALPHA = 180
 LOG_LENGTH = 20
 
 
-def update(grid: MinecraftGrid, scale: Dim, pos: Dim) -> None:
+def update(grid: GatesGrid, scale: Dim, pos: Dim) -> None:
     global gate_name
     global select_gate_id
     global gate_pos
@@ -127,7 +127,7 @@ def draw_logs(display: pygame.Surface, screen_dim: Dim) -> None:
 
 
 def draw_hud(
-    grid: MinecraftGrid,
+    grid: GatesGrid,
     display: pygame.Surface,
     placer: Placer,
     screen_dim: Dim,

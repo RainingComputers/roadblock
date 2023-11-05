@@ -2,7 +2,7 @@ import pygame
 import numpy as np
 
 from roadblock.dim import Dim
-from roadblock.grid import MinecraftGrid
+from roadblock.grid import GatesGrid
 
 colors = None
 
@@ -42,7 +42,7 @@ def grid_to_surface(
 
 def draw_grid(
     display: pygame.Surface,
-    grid: MinecraftGrid,
+    grid: GatesGrid,
     scale: Dim,
 ) -> None:
     colors = get_colors(grid.num_gates)

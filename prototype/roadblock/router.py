@@ -5,7 +5,7 @@ from queue import PriorityQueue
 import numpy as np
 
 from roadblock.dim import Dim, Dim3
-from roadblock.grid import MinecraftGrid
+from roadblock.grid import GatesGrid
 from roadblock import log
 
 
@@ -45,7 +45,7 @@ def pred_to_cost(pred: Pred) -> int:
     return 1
 
 
-def construct_routes(grid: MinecraftGrid) -> list[list[Dim]]:
+def construct_routes(grid: GatesGrid) -> list[list[Dim]]:
     wire_routes: list[list[Dim]] = []
     clk_routes: list[list[Dim]] = []
 
@@ -148,7 +148,7 @@ def reset_wavefront_inplace(
         wavefront.put(WavefrontCell(loc=point, cost=0, pred=Pred.ROOT))
 
 
-def route(grid: MinecraftGrid, dim: Dim, max_layers: int) -> None:
+def route(grid: GatesGrid, dim: Dim, max_layers: int) -> None:
     router_grid = np.full((dim.x, dim.y, max_layers), -1)
 
     routes = construct_routes(grid)
