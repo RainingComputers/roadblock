@@ -25,7 +25,7 @@ class Placer(ABC):
     def update(self, grid: MinecraftGrid) -> bool:
         pass
 
-    def update_cost(
+    def _update_cost(
         self, new_cost: float, a: int, a_pos: Dim, b: int, b_pos: Dim
     ) -> None:
         self._swaps += 1
@@ -58,7 +58,7 @@ class RandomPlacer(Placer):
         new_cost = grid.cost
 
         if new_cost < self._cost:
-            self.update_cost(new_cost, a, a_pos, b, b_pos)
+            self._update_cost(new_cost, a, a_pos, b, b_pos)
         else:
             grid.undo_mutate(a, a_pos, b, b_pos)
 
@@ -117,13 +117,13 @@ class AnnealingPlacer(Placer):
         new_cost = grid.cost
 
         if new_cost < self._cost:
-            self.update_cost(new_cost, a, a_pos, b, b_pos)
+            self._update_cost(new_cost, a, a_pos, b, b_pos)
         else:
             d_cost = new_cost - self._cost
             self._accept_prob = exp(-d_cost / self._temp)
 
             if random() < self._accept_prob:
-                self.update_cost(new_cost, a, a_pos, b, b_pos)
+                self._update_cost(new_cost, a, a_pos, b, b_pos)
             else:
                 grid.undo_mutate(a, a_pos, b, b_pos)
 
