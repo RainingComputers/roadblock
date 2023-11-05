@@ -64,6 +64,7 @@ def draw_select_rectangle(
 
 gate_name = ""
 select_gate_id = None
+gate_pos = None
 
 FONT_SIZE = 18
 FONT_ALPHA = 180
@@ -73,7 +74,9 @@ LOG_LENGTH = 20
 def update(grid: MinecraftGrid, scale: Dim, pos: Dim) -> None:
     global gate_name
     global select_gate_id
+    global gate_pos
 
+    gate_pos = pos
     gate_name, select_gate_id = get_gate(grid, scale, pos)
 
 
@@ -85,6 +88,10 @@ def draw_placer_stats(
     if gate_name != "":
         name_text = render_text(gate_name)
         display.blit(name_text, (0, 10 + FONT_SIZE))
+
+    if gate_pos is not None:
+        pos_text = render_text(str(gate_pos))
+        display.blit(pos_text, (0, 10 + 2 * FONT_SIZE))
 
     cost_text = render_text(placer.hud_string)
     display.blit(cost_text, (0, 10))

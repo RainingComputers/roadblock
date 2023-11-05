@@ -127,9 +127,6 @@ class AnnealingPlacer(Placer):
             else:
                 grid.undo_mutate(a, a_pos, b, b_pos)
 
-        # self.mue = 1 + ((new_cost - self.best_cost) / new_cost)
-        # self.temp *= self.mue
-
         self._temp = self._min_temp + self._d_temp * (
             ((self._max_steps - self._steps) / self._max_steps) ** 2
         )
