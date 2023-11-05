@@ -188,4 +188,4 @@ def route(grid: MinecraftGrid, dim: Dim, max_layers: int) -> None:
             for unreached_cell in neighbors(cell, router_grid, pred_grid):
                 wavefront.put(unreached_cell)
 
-            pred_grid[cell.loc.x][cell.loc.y][cell.loc.z].pred = cell.pred
+            pred_grid[cell.loc.x, cell.loc.y, cell.loc.z].pred = cell.pred
