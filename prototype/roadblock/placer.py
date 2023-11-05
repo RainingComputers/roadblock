@@ -49,7 +49,7 @@ class RandomPlacer(Placer):
         log.info("Random placer initialized")
 
     def update(self, grid: MinecraftGrid) -> bool:
-        if self._steps == self._max_steps - 1:
+        if self._steps >= self._max_steps - 1:
             log.info("Random placement complete")
             self.plot_graph()
             return True
@@ -108,7 +108,7 @@ class AnnealingPlacer(Placer):
         log.info("Annealing placer initialized")
 
     def update(self, grid: MinecraftGrid) -> bool:
-        if self._steps == self._max_steps - 1 or self._temp < self._min_temp:
+        if self._steps >= self._max_steps - 1 or self._temp < self._min_temp:
             log.info("Annealing complete")
             self.plot_graph()
             return True

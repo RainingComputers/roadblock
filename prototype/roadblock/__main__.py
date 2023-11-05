@@ -14,13 +14,13 @@ from roadblock import log
 
 log.enable_debug()
 
-#  python3 -m roadblock roadblock_cells.lib test.v adder 16 1024
+#  python3 -m roadblock roadblock_cells.lib test.v adder 16
 
 lib_file = sys.argv[1]
 verilog_file = sys.argv[2]
 module = sys.argv[3]
 grid_dim = Dim(int(sys.argv[4]), int(sys.argv[4]))
-screen_dim = Dim(int(sys.argv[5]), int(sys.argv[5]))
+screen_dim = Dim(1024, 1024)
 scale = screen_dim // grid_dim
 
 pygame.init()
