@@ -260,9 +260,7 @@ class GatesGridCostCache:
     def cached_cost(
         self, out_in_map: dict[int, set[int]], gate_pos_map: list[Dim | None]
     ) -> float:
-        cost_clean = self.cost_clean(out_in_map, gate_pos_map)
-        self._cost_cache = cost_clean
-        return cost_clean
+        return self._cost_cache
 
     def being_mutation(
         self, gate_ids: list[int], in_out_map: dict[int, set[int]]

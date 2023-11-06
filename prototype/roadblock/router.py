@@ -109,6 +109,8 @@ def neighbors(
         if pred_grid[nloc.x, nloc.y, nloc.z] is not None:
             continue
 
+        # cap with grid limits
+
         neighbors.append(WavefrontCell(loc=nloc, cost=pred_to_cost(pred), pred=pred))
 
     return neighbors
