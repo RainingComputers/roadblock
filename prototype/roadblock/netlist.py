@@ -1,7 +1,6 @@
 from typing import Any
 from dataclasses import dataclass
 from enum import Enum
-from graphviz import Digraph
 
 from roadblock.dim import Dim
 
@@ -244,66 +243,3 @@ def construct_reverse_netlist(netlist: dict[int, set[int]]) -> dict[int, set[int
                 reverse_netlist[gate_id] = set([net_id])
 
     return reverse_netlist
-
-
-def get_input_gates(
-    net_id: int, gates: list[MinecraftGate], net_list: dict[int, set[int]]
-) -> set[int]:
-    input_gate_ids: set[int] = set()
-
-    for gate_id in net_list[net_id]:
-        if net_id in gates[gate_id].outputs:
-            continue
-
-        input_gate_ids.add(gate_id)
-
-    return input_gate_ids
-
-
-def construct_out_in_map(
-    gates: list[MinecraftGate], net_list: dict[int, set[int]]
-) -> dict[int, set[int]]:
-    # Given a gate, what other gates take its output as input or clock
-    out_in_map: dict[int, set[int]] = {}
-
-    for gate_id, gate in enumerate(gates):
-        inp_gates: set[int] = set()
-
-        for out_net in gate.outputs:
-            try:
-                inp_gates = inp_gates.union(get_input_gates(out_net, gates, net_list))
-            except KeyError:
-                log.warn(f"Inputs not found for {gate.name} net {out_net}")
-
-        out_in_map[gate_id] = inp_gates
-
-    return out_in_map
-
-
-def construct_in_out_map(
-    out_in_map: dict[int, set[int]],
-) -> dict[int, set[int]]:
-    # What gates feed into the given gate
-    in_out_map: dict[int, set[int]] = {}
-
-    for out_gate_id, in_gate_ids in out_in_map.items():
-        for in_gate_id in in_gate_ids:
-            try:
-                in_out_map[in_gate_id].add(out_gate_id)
-            except KeyError:
-                in_out_map[in_gate_id] = set([out_gate_id])
-
-    return in_out_map
-
-
-def show_circuit(
-    gates: list[MinecraftGate],
-    out_in_map: dict[int, set[int]],
-) -> None:
-    g = Digraph()
-
-    for src_gate, dest_gates in out_in_map.items():
-        for in_gate in dest_gates:
-            g.edge(gates[src_gate].full_name, gates[in_gate].full_name)
-
-    g.view()

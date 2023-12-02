@@ -3,8 +3,6 @@ import json
 
 from roadblock.netlist import (
     yosys_to_minecraft_gates,
-    construct_out_in_map,
-    show_circuit,
     MinecraftGate,
 )
 
@@ -64,10 +62,6 @@ def run_yosys_flow(
 
     log.info("Converting yosys netlist to minecraft netlist")
     gates, netlist = yosys_to_minecraft_gates(yosys_netlist, module)
-    out_in_map = construct_out_in_map(gates, netlist)
-
     log.info(f"Result is {len(gates)} gates")
-
-    show_circuit(gates, out_in_map)
 
     return gates, netlist
