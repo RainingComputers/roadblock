@@ -4,7 +4,7 @@ from typing import Iterator, ItemsView
 import numpy as np
 
 from roadblock.dim import Dim
-from roadblock.netlist import MinecraftGate, construct_in_out_map
+from roadblock.netlist import MinecraftGate, construct_reverse_netlist
 
 from roadblock import log
 
@@ -41,14 +41,11 @@ def get_half_perim(gates_pos: list[Dim | None]) -> float:
     return half_perim
 
 
-def get_affected_gates(
+def get_affected_nets(
     gate_id: int,
-    in_out_map: dict[int, set[int]],
-) -> list[int]:
-    ids = [gate_id]
-    ids.extend(in_out_map[gate_id])
-
-    return ids
+    reverse_netlist: dict[int, set[int]],
+) -> set[int]:
+    return reverse_netlist[gate_id]
 
 
 class GatesGrid:
@@ -58,11 +55,11 @@ class GatesGrid:
         self,
         dim: Dim,
         gates: list[MinecraftGate],
-        out_in_map: dict[int, set[int]],
+        netlist: dict[int, set[int]],
     ):
         self._dim = dim
-        self._out_in_map = out_in_map
-        self._in_out_map = construct_in_out_map(out_in_map)
+        self._netlist = netlist
+        self._reverse_netlist = construct_reverse_netlist(netlist)
         self._gates = gates
 
         self._grid = np.full((dim.x, dim.y), -1)
@@ -77,11 +74,11 @@ class GatesGrid:
             else:
                 self._place(gate_id)
 
-        self._cost_cache = GatesGridCostCache(out_in_map, self._gate_pos_map)
+        self._cost_cache = GatesGridCostCache(netlist, self._gate_pos_map)
 
     @property
-    def out_in_map(self) -> ItemsView[int, set[int]]:
-        return self._out_in_map.items()
+    def netlist(self) -> ItemsView[int, set[int]]:
+        return self._netlist.items()
 
     @property
     def num_gates(self) -> int:
@@ -122,7 +119,7 @@ class GatesGrid:
 
     @property
     def cost(self) -> float:
-        return self._cost_cache.cached_cost(self._out_in_map, self._gate_pos_map)
+        return self._cost_cache.cached_cost()
 
     @property
     def num_filled(self) -> int:
@@ -145,7 +142,7 @@ class GatesGrid:
             log.error("Corrupt state found while trying to mutate grid")
             raise ValueError
 
-        self._cost_cache.being_mutation([gate_a_id, gate_b_id], self._in_out_map)
+        self._cost_cache.being_mutation([gate_a_id, gate_b_id], self._reverse_netlist)
 
         self._move_gate(gate_a_id)
         self._move_gate(gate_b_id)
@@ -155,13 +152,13 @@ class GatesGrid:
         return gate_a_id, gate_a_pos, gate_b_id, gate_b_pos
 
     def _move_gate(self, gate_id: int) -> None:
-        self._cost_cache.begin_gate_move(gate_id, self._in_out_map)
+        self._cost_cache.begin_gate_move(gate_id, self._reverse_netlist)
 
         self._free(gate_id)
         self._place(gate_id)
 
         self._cost_cache.end_gate_move(
-            gate_id, self._in_out_map, self._out_in_map, self._gate_pos_map
+            gate_id, self._reverse_netlist, self._netlist, self._gate_pos_map
         )
 
     def undo_mutate(
@@ -233,7 +230,7 @@ class GatesGrid:
 
 class GatesGridCostCache:
     def __init__(
-        self, out_in_map: dict[int, set[int]], gate_pos_map: list[Dim | None]
+        self, netlist: dict[int, set[int]], gate_pos_map: list[Dim | None]
     ) -> None:
         self._half_perim_cache_map: dict[int, float] = {}
 
@@ -241,50 +238,48 @@ class GatesGridCostCache:
         self._undo_cost_old = 0.0
         self._undo_cost_new = 0.0
 
-        self._cost_cache: float = self.cost_clean(out_in_map, gate_pos_map)
+        self._cost_cache: float = self.cost_clean(netlist, gate_pos_map)
 
     def cost_clean(
-        self, out_in_map: dict[int, set[int]], gate_pos_map: list[Dim | None]
+        self, netlist: dict[int, set[int]], gate_pos_map: list[Dim | None]
     ) -> float:
         log.info("Calculating clean grid cost")
 
         cost = 0.0
 
-        for out_gate_id in out_in_map:
-            cost += self._get_and_cache_gate_half_perim(
-                out_gate_id, out_in_map, gate_pos_map
-            )
+        for net_id in netlist:
+            cost += self._get_and_cache_net_half_perim(net_id, netlist, gate_pos_map)
 
         return cost
 
-    def cached_cost(
-        self, out_in_map: dict[int, set[int]], gate_pos_map: list[Dim | None]
-    ) -> float:
+    def cached_cost(self) -> float:
         return self._cost_cache
 
     def being_mutation(
-        self, gate_ids: list[int], in_out_map: dict[int, set[int]]
+        self, gate_ids: list[int], reverse_netlist: dict[int, set[int]]
     ) -> None:
         self._undo_cost_old = 0.0
         self._undo_cost_new = 0.0
         self._undo_half_perim_map.clear()
 
         for gate_id in gate_ids:
-            self._save_affected_half_perims(gate_id, in_out_map)
+            self._save_affected_half_perims(gate_id, reverse_netlist)
 
-    def begin_gate_move(self, gate_id: int, in_out_map: dict[int, set[int]]) -> None:
+    def begin_gate_move(
+        self, gate_id: int, reverse_netlist: dict[int, set[int]]
+    ) -> None:
         if self._cost_cache is not None:
-            self._undo_cost_old += self._get_cached_part_cost(gate_id, in_out_map)
+            self._undo_cost_old += self._get_cached_part_cost(gate_id, reverse_netlist)
 
     def end_gate_move(
         self,
         gate_id: int,
-        in_out_map: dict[int, set[int]],
-        out_in_map: dict[int, set[int]],
+        reverse_netlist: dict[int, set[int]],
+        netlist: dict[int, set[int]],
         gate_pos_map_after: list[Dim | None],
     ) -> None:
         self._undo_cost_new += self._get_part_cost(
-            gate_id, in_out_map, out_in_map, gate_pos_map_after
+            gate_id, reverse_netlist, netlist, gate_pos_map_after
         )
 
     def end_mutation_and_update_cache(self) -> None:
@@ -297,58 +292,54 @@ class GatesGridCostCache:
 
         self._restore_half_perims()
 
-    def _get_and_cache_gate_half_perim(
+    def _get_and_cache_net_half_perim(
         self,
-        out_gate_id: int,
-        out_in_map: dict[int, set[int]],
+        net_id: int,
+        netlist: dict[int, set[int]],
         gate_pos_map: list[Dim | None],
     ) -> float:
-        gates_pos_list = [gate_pos_map[out_gate_id]]
+        gates_ids = netlist[net_id]
 
-        in_gates_ids = out_in_map[out_gate_id]
-
-        gates_pos_list.extend(
-            [gate_pos_map[in_gate_id] for in_gate_id in in_gates_ids],
-        )
+        gates_pos_list = [gate_pos_map[gate_id] for gate_id in gates_ids]
 
         half_perim = get_half_perim(gates_pos_list)
-        self._half_perim_cache_map[out_gate_id] = half_perim
+        self._half_perim_cache_map[net_id] = half_perim
 
         return half_perim
 
     def _get_cached_part_cost(
         self,
         gate_id: int,
-        in_out_map: dict[int, set[int]],
+        reverse_netlist: dict[int, set[int]],
     ) -> float:
-        ids = get_affected_gates(gate_id, in_out_map)
-        return sum([self._half_perim_cache_map[gate_id] for gate_id in ids])
+        net_ids = get_affected_nets(gate_id, reverse_netlist)
+        return sum([self._half_perim_cache_map[net_id] for net_id in net_ids])
 
     def _get_part_cost(
         self,
         gate_id: int,
-        in_out_map: dict[int, set[int]],
-        out_in_map: dict[int, set[int]],
+        reverse_netlist: dict[int, set[int]],
+        netlist: dict[int, set[int]],
         gate_pos_map: list[Dim | None],
     ) -> float:
-        ids = get_affected_gates(gate_id, in_out_map)
+        net_ids = get_affected_nets(gate_id, reverse_netlist)
         return sum(
             [
-                self._get_and_cache_gate_half_perim(gate_id, out_in_map, gate_pos_map)
-                for gate_id in ids
+                self._get_and_cache_net_half_perim(net_id, netlist, gate_pos_map)
+                for net_id in net_ids
             ]
         )
 
     def _save_affected_half_perims(
         self,
         gate_id: int,
-        in_out_map: dict[int, set[int]],
+        reverse_netlist: dict[int, set[int]],
     ) -> None:
-        ids = get_affected_gates(gate_id, in_out_map)
+        net_ids = get_affected_nets(gate_id, reverse_netlist)
 
-        for gate_id in ids:
-            self._undo_half_perim_map[gate_id] = self._half_perim_cache_map[gate_id]
+        for net_id in net_ids:
+            self._undo_half_perim_map[net_id] = self._half_perim_cache_map[net_id]
 
     def _restore_half_perims(self) -> None:
-        for gate_id, half_perim in self._undo_half_perim_map.items():
-            self._half_perim_cache_map[gate_id] = half_perim
+        for net_id, half_perim in self._undo_half_perim_map.items():
+            self._half_perim_cache_map[net_id] = half_perim

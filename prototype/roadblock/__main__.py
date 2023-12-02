@@ -5,6 +5,8 @@ import pygame
 from roadblock.yosys import run_yosys_flow
 from roadblock.dim import Dim
 from roadblock.placer import AnnealingPlacer
+
+# from roadblock.router import route
 from roadblock.grid import GatesGrid
 
 from roadblock import visual
@@ -29,7 +31,8 @@ display = pygame.display.set_mode((screen_dim.x, screen_dim.y))
 
 running = True
 error = False
-complete = False
+placement_complete = False  # TODO: Use an enum
+routing_complete = False
 placer = None
 grid = None
 
@@ -46,7 +49,7 @@ while running:
 
     try:
         if placer is None:
-            gates, out_in_map = run_yosys_flow(verilog_file, lib_file, module)
+            gates, netlist = run_yosys_flow(verilog_file, lib_file, module)
             placer = AnnealingPlacer(
                 init_temp=10,
                 min_temp=0,
@@ -54,13 +57,17 @@ while running:
             )
             # placer = RandomPlacer(max_steps=2000)
 
-            grid = GatesGrid(grid_dim, gates, out_in_map)
+            grid = GatesGrid(grid_dim, gates, netlist)
             log.info(
                 f"{grid.num_filled} of {grid_dim.x*grid_dim.y} cells filled",
             )
         else:
-            if not complete:
-                complete = placer.update(grid)
+            if not placement_complete:
+                placement_complete = placer.update(grid)
+
+        # if placement_complete and not routing_complete and grid is not None:
+        #     route(grid, 3)
+        #     routing_complete = True
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -75,6 +82,7 @@ while running:
 
     except (ValueError, KeyError):
         error = True
+        raise
 
     hud.draw_logs(display, screen_dim)
     pygame.display.update()

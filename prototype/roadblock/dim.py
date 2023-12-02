@@ -35,4 +35,4 @@ class Dim3:
         return Dim3(self.x + other.x, self.y + other.y, self.z + other.z)
 
     def __sub__(self, other: "Dim3") -> "Dim3":
-        return Dim3(self.x - other.z, self.y - other.y, self.z - other.z)
+        return Dim3(self.x - other.x, self.y - other.y, self.z - other.z)

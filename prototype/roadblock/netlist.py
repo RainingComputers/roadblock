@@ -1,7 +1,7 @@
 from typing import Any
 from dataclasses import dataclass
 from enum import Enum
-from graphviz import Graph
+from graphviz import Digraph
 
 from roadblock.dim import Dim
 
@@ -78,8 +78,62 @@ def get_gate_type(yosys_type: str) -> GateType:
     raise KeyError
 
 
+def construct_nor_inputs_equals_list(
+    data: dict[str, Any], module: str
+) -> list[list[int]]:
+    equals_list: list[list[int]] = []
+
+    for yosys_gate in data["modules"][module]["cells"].values():
+        yosys_type = yosys_gate["type"]
+        yosys_connection = yosys_gate["connections"]
+
+        if yosys_type != "NOR":
+            continue
+
+        lhs = yosys_connection["A"][0]
+        rhs = yosys_connection["B"][0]
+
+        already_exists = False
+
+        for existing_entry in equals_list:
+            if lhs in existing_entry or rhs in existing_entry:
+                existing_entry.append(lhs)
+                existing_entry.append(rhs)
+                already_exists = True
+
+        if not already_exists:
+            equals_list.append([lhs, rhs])
+
+    return equals_list
+
+
+def construct_nor_inputs_rename_map(
+    data: dict[str, Any], module: str
+) -> dict[int, int]:
+    equals_list = construct_nor_inputs_equals_list(data, module)
+
+    rename_map: dict[int, int] = {}
+
+    for equals_entry in equals_list:
+        rename_to = min(equals_entry)
+
+        for rename_from in equals_entry:
+            rename_map[rename_from] = rename_to
+
+    return rename_map
+
+
+def net_id_list_to_renamed_set(nets: list[int], rename_map: dict[int, int]) -> set[int]:
+    out = set()
+
+    for net_id in nets:
+        out.add(rename_map.get(net_id, net_id))
+
+    return out
+
+
 def extract_nets_from_yosys_cell(
-    yosys_type: str, yosys_connection: dict[str, Any]
+    yosys_type: str, yosys_connection: dict[str, Any], rename_map: dict[int, int]
 ) -> tuple[set[int], set[int], set[int]]:
     input_nets = []
     output_nets = []
@@ -99,7 +153,11 @@ def extract_nets_from_yosys_cell(
         log.error("Yosys netlist invalid format")
         raise
 
-    return set(input_nets), set(clk_nets), set(output_nets)
+    return (
+        net_id_list_to_renamed_set(input_nets, rename_map),
+        net_id_list_to_renamed_set(clk_nets, rename_map),
+        net_id_list_to_renamed_set(output_nets, rename_map),
+    )
 
 
 def yosys_to_minecraft_gates(
@@ -108,15 +166,16 @@ def yosys_to_minecraft_gates(
 ) -> tuple[list[MinecraftGate], dict[int, set[int]]]:
     gates: list[MinecraftGate] = []
 
-    # Given a net id, what gates take this net as input or clk
+    # Given a net id, what gates take this net as input or clk or output
     net_list: dict[int, set[int]] = {}
+    rename_map = construct_nor_inputs_rename_map(data, module)
 
     def append_to_netlist(nets: set[int], gate_id: int) -> None:
-        for net in nets:
+        for net_id in nets:
             try:
-                net_list[net].add(gate_id)
+                net_list[net_id].add(gate_id)
             except KeyError:
-                net_list[net] = set([gate_id])
+                net_list[net_id] = set([gate_id])
 
     for yosys_name, yosys_gate in data["modules"][module]["cells"].items():
         gate_id = len(gates)
@@ -125,11 +184,12 @@ def yosys_to_minecraft_gates(
         yosys_connection = yosys_gate["connections"]
 
         input_nets, clk_nets, output_nets = extract_nets_from_yosys_cell(
-            yosys_type, yosys_connection
+            yosys_type, yosys_connection, rename_map
         )
 
         append_to_netlist(input_nets, gate_id)
         append_to_netlist(clk_nets, gate_id)
+        append_to_netlist(output_nets, gate_id)
 
         gates.append(
             MinecraftGate(
@@ -145,7 +205,9 @@ def yosys_to_minecraft_gates(
         gate_id = len(gates)
 
         gate_type = get_gate_type(yosys_port["direction"])
-        gate_nets = yosys_port["bits"]
+        gate_nets = net_id_list_to_renamed_set(yosys_port["bits"], rename_map)
+
+        append_to_netlist(gate_nets, gate_id)
 
         if gate_type == GateType.IN:
             gates.append(
@@ -158,8 +220,6 @@ def yosys_to_minecraft_gates(
                 )
             )
         else:
-            append_to_netlist(gate_nets, gate_id)
-
             gates.append(
                 MinecraftGate(
                     name=port_name,
@@ -173,6 +233,33 @@ def yosys_to_minecraft_gates(
     return gates, net_list
 
 
+def construct_reverse_netlist(netlist: dict[int, set[int]]) -> dict[int, set[int]]:
+    reverse_netlist: dict[int, set[int]] = {}
+
+    for net_id, gate_ids in netlist.items():
+        for gate_id in gate_ids:
+            try:
+                reverse_netlist[gate_id].add(net_id)
+            except KeyError:
+                reverse_netlist[gate_id] = set([net_id])
+
+    return reverse_netlist
+
+
+def get_input_gates(
+    net_id: int, gates: list[MinecraftGate], net_list: dict[int, set[int]]
+) -> set[int]:
+    input_gate_ids: set[int] = set()
+
+    for gate_id in net_list[net_id]:
+        if net_id in gates[gate_id].outputs:
+            continue
+
+        input_gate_ids.add(gate_id)
+
+    return input_gate_ids
+
+
 def construct_out_in_map(
     gates: list[MinecraftGate], net_list: dict[int, set[int]]
 ) -> dict[int, set[int]]:
@@ -184,7 +271,7 @@ def construct_out_in_map(
 
         for out_net in gate.outputs:
             try:
-                inp_gates = inp_gates.union(net_list[out_net])
+                inp_gates = inp_gates.union(get_input_gates(out_net, gates, net_list))
             except KeyError:
                 log.warn(f"Inputs not found for {gate.name} net {out_net}")
 
@@ -213,7 +300,7 @@ def show_circuit(
     gates: list[MinecraftGate],
     out_in_map: dict[int, set[int]],
 ) -> None:
-    g = Graph()
+    g = Digraph()
 
     for src_gate, dest_gates in out_in_map.items():
         for in_gate in dest_gates:

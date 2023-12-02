@@ -63,11 +63,11 @@ def run_yosys_flow(
         yosys_netlist = json.load(f)
 
     log.info("Converting yosys netlist to minecraft netlist")
-    gates, net_list = yosys_to_minecraft_gates(yosys_netlist, module)
-    out_in_map = construct_out_in_map(gates, net_list)
+    gates, netlist = yosys_to_minecraft_gates(yosys_netlist, module)
+    out_in_map = construct_out_in_map(gates, netlist)
 
     log.info(f"Result is {len(gates)} gates")
 
     show_circuit(gates, out_in_map)
 
-    return gates, out_in_map
+    return gates, netlist
