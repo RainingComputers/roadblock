@@ -159,56 +159,54 @@ def dump_router_grid(router_grid: np.ndarray[int]) -> None:
         np.savetxt(f"routes-layer{i}.txt", router_grid[i], fmt="%d")
 
 
+def create_route_inplace(
+    router_grid: np.ndarray[Pred | None],
+    route_id: int,
+    points: list[Dim],
+    grid_dim: Dim,
+    max_layers: int,
+) -> bool:
+    start = points[0].to_dim3()
+    targets = list(map(lambda point: point.to_dim3(), points[1:]))
+
+    traces: list[Dim3] = [start]
+    wavefront: PriorityQueue[WavefrontCell] = PriorityQueue()
+
+    pred_grid = create_pred_grid(grid_dim, max_layers, traces)
+    wavefront.put(WavefrontCell(loc=start, cost=0, pred=Pred.ROOT))
+
+    while True:
+        if wavefront.empty():
+            dump_router_grid(router_grid)
+            return False
+
+        cell = wavefront.get()
+
+        if cell.loc in targets:
+            targets.remove(cell.loc)
+
+            traces.extend(backtrace_inplace(cell, router_grid, pred_grid, route_id))
+
+            pred_grid = create_pred_grid(grid_dim, max_layers, traces)
+            reset_wavefront_inplace(wavefront, traces)
+
+            if len(targets) == 0:
+                return True
+
+        wavefront_locs = list(map(lambda cell: cell.loc, wavefront.queue))
+
+        neighbors = get_neighbors(cell, router_grid, pred_grid, wavefront_locs)
+
+        for neighbor in neighbors:
+            wavefront.put(neighbor)
+
+        pred_grid[cell.loc.x, cell.loc.y, cell.loc.z] = cell.pred
+
+
 def route(grid: GatesGrid, max_layers: int) -> None:
     router_grid = np.full((max_layers, grid.dim.x, grid.dim.y), -1, dtype=np.int32)
 
     routes = construct_routes(grid)
 
     for route_id, points in enumerate(routes):
-        start = points[0].to_dim3()
-        targets = list(map(lambda point: point.to_dim3(), points[1:]))
-
-        traces: list[Dim3] = [start]
-        wavefront: PriorityQueue[WavefrontCell] = PriorityQueue()
-
-        pred_grid = create_pred_grid(grid.dim, max_layers, traces)
-        wavefront.put(WavefrontCell(loc=start, cost=0, pred=Pred.ROOT))
-
-        while True:
-            if wavefront.empty():
-                log.error("Reached empty wavefront")
-                dump_router_grid(router_grid)
-                raise ValueError
-
-            cell = wavefront.get()
-
-            if cell.loc in targets:
-                targets.remove(cell.loc)
-
-                traces.extend(
-                    backtrace_inplace(
-                        cell,
-                        router_grid,
-                        pred_grid,
-                        route_id,
-                    )
-                )
-
-                pred_grid = create_pred_grid(grid.dim, max_layers, traces)
-                reset_wavefront_inplace(wavefront, traces)
-
-                if len(targets) == 0:
-                    break
-
-            wavefront_locs = list(map(lambda cell: cell.loc, wavefront.queue))
-
-            neighbors = get_neighbors(
-                cell, router_grid, pred_grid, wavefront_locs,
-            )
-
-            for unreached_cell in neighbors:
-                wavefront.put(unreached_cell)
-
-            pred_grid[cell.loc.x, cell.loc.y, cell.loc.z] = cell.pred
-
-    dump_router_grid(router_grid)
+        create_route_inplace(router_grid, route_id, points, grid.dim, max_layers)
