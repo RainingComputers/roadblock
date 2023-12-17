@@ -6,7 +6,7 @@ from roadblock.yosys import run_yosys_flow
 from roadblock.dim import Dim
 from roadblock.placer import AnnealingPlacer
 
-# from roadblock.router import route
+from roadblock.router import route
 from roadblock.grid import GatesGrid
 
 from roadblock import visual
@@ -65,9 +65,9 @@ while running:
             if not placement_complete:
                 placement_complete = placer.update(grid)
 
-        # if placement_complete and not routing_complete and grid is not None:
-        #     route(grid, 3)
-        #     routing_complete = True
+        if placement_complete and not routing_complete and grid is not None:
+            route(grid, 4)
+            routing_complete = True
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

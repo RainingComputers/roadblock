@@ -10,16 +10,16 @@ from roadblock import log
 
 
 def dim_pin_iterator(dim: Dim) -> Iterator[Dim]:
-    for x in range(dim.x):
+    for x in range(1, dim.x - 1):
         yield Dim(x, 0)
 
-    for y in range(1, dim.y):
+    for y in range(1, dim.y - 1):
         yield Dim(dim.x - 1, y)
 
-    for x in range(dim.x - 2, -1, -1):
+    for x in range(dim.x - 2, 0, -1):
         yield Dim(x, dim.y - 1)
 
-    for y in range(dim.y - 2, -1, -1):
+    for y in range(dim.y - 2, 0, -1):
         yield Dim(0, y)
 
     log.error("Not enough pin space")

@@ -6,7 +6,6 @@ import numpy as np
 
 from roadblock.dim import Dim, Dim3
 from roadblock.grid import GatesGrid
-from roadblock.netlist import GateType
 from roadblock import log
 
 
@@ -47,40 +46,27 @@ def pred_to_cost(pred: Pred) -> int:
 
 
 def construct_routes(grid: GatesGrid) -> list[list[Dim]]:
-    wire_routes: list[list[Dim]] = []
-    clk_routes: list[list[Dim]] = []
+    routes: list[list[Dim]] = []
 
-    for out_gate_id, in_gate_ids in grid.netlist:
-        out_gate = grid.get_gate_from_id(out_gate_id)
-        if out_gate.gate_type == GateType.OUT:
-            continue
+    for net_id, gates_ids in grid.netlist:
+        route: list[Dim] = []
 
-        out_gate_pos = grid.get_pos_expect(out_gate_id)
-        src = out_gate_pos + out_gate.out_coords
+        for gate_id in gates_ids:
+            gate = grid.get_gate_from_id(gate_id)
+            gate_pos = grid.get_pos_expect(gate_id)
 
-        wire_points: list[Dim] = [src]
-        clk_points: list[Dim] = [src]
+            if net_id in gate.inputs:
+                route.append(gate_pos + gate.in_coords)
 
-        for in_gate_id in in_gate_ids:
-            in_gate = grid.get_gate_from_id(in_gate_id)
-            in_gate_pos = grid.get_pos_expect(in_gate_id)
+            if net_id in gate.outputs:
+                route.append(gate_pos + gate.out_coords)
 
-            if out_gate.outputs & in_gate.inputs:
-                wire_points.append(in_gate_pos + in_gate.in_coords)
+            if net_id in gate.clk_inputs:
+                route.append(gate_pos + gate.clk_coords)
 
-            if out_gate.outputs & in_gate.clk_inputs:
-                clk_points.append(in_gate_pos + in_gate.clk_coords)
+        routes.append(route)
 
-        if len(wire_points) > 1:
-            wire_routes.append(wire_points)
-
-        if len(clk_points) > 1:
-            clk_routes.append(clk_points)
-
-    all_routes = clk_routes
-    all_routes.extend(wire_routes)
-
-    return all_routes
+    return routes
 
 
 def create_pred_grid(
@@ -147,10 +133,12 @@ def backtrace_inplace(
     while pred != Pred.ROOT:
         new_loc = loc + pred_to_dim3(pred)
 
-        trace.append(new_loc)
-        router_grid[new_loc.z, new_loc.x, new_loc.y] = route_id
-
         pred = pred_grid[new_loc.x, new_loc.y, new_loc.z]
+
+        if pred != Pred.ROOT:
+            trace.append(new_loc)
+
+        router_grid[new_loc.z, new_loc.x, new_loc.y] = route_id
         loc = new_loc
 
     return trace
@@ -166,8 +154,13 @@ def reset_wavefront_inplace(
         wavefront.put(WavefrontCell(loc=point, cost=0, pred=Pred.ROOT))
 
 
+def dump_router_grid(router_grid: np.ndarray[int]) -> None:
+    for i in range(router_grid.shape[0]):
+        np.savetxt(f"routes-layer{i}.txt", router_grid[i], fmt="%d")
+
+
 def route(grid: GatesGrid, max_layers: int) -> None:
-    router_grid = np.full((max_layers, grid.dim.x, grid.dim.y), -1)
+    router_grid = np.full((max_layers, grid.dim.x, grid.dim.y), -1, dtype=np.int32)
 
     routes = construct_routes(grid)
 
@@ -181,11 +174,10 @@ def route(grid: GatesGrid, max_layers: int) -> None:
         pred_grid = create_pred_grid(grid.dim, max_layers, traces)
         wavefront.put(WavefrontCell(loc=start, cost=0, pred=Pred.ROOT))
 
-        reached = False
-
-        while not reached:
+        while True:
             if wavefront.empty():
                 log.error("Reached empty wavefront")
+                dump_router_grid(router_grid)
                 raise ValueError
 
             cell = wavefront.get()
@@ -206,18 +198,17 @@ def route(grid: GatesGrid, max_layers: int) -> None:
                 reset_wavefront_inplace(wavefront, traces)
 
                 if len(targets) == 0:
-                    reached = True
-
-                break
+                    break
 
             wavefront_locs = list(map(lambda cell: cell.loc, wavefront.queue))
 
-            neighbors = get_neighbors(cell, router_grid, pred_grid, wavefront_locs)
+            neighbors = get_neighbors(
+                cell, router_grid, pred_grid, wavefront_locs,
+            )
 
             for unreached_cell in neighbors:
                 wavefront.put(unreached_cell)
 
             pred_grid[cell.loc.x, cell.loc.y, cell.loc.z] = cell.pred
 
-    for i in range(max_layers):
-        np.savetxt(f"routes-layer{i}.txt", router_grid)
+    dump_router_grid(router_grid)
