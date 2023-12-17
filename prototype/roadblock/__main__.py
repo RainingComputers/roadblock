@@ -66,7 +66,7 @@ while running:
                 placement_complete = placer.update(grid)
 
         if placement_complete and not routing_complete and grid is not None:
-            route(grid, 4)
+            route(grid, 30)
             routing_complete = True
 
         for event in pygame.event.get():

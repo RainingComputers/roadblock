@@ -1,6 +1,7 @@
+import random
 from enum import Enum
 from dataclasses import dataclass, field
-from queue import PriorityQueue
+from queue import PriorityQueue, Queue
 
 import numpy as np
 
@@ -45,28 +46,32 @@ def pred_to_cost(pred: Pred) -> int:
     return 1
 
 
-def construct_routes(grid: GatesGrid) -> list[list[Dim]]:
-    routes: list[list[Dim]] = []
+def construct_routes(grid: GatesGrid) -> dict[int, list[Dim]]:
+    routes: dict[int, list[Dim]] = {}
 
     for net_id, gates_ids in grid.netlist:
-        route: list[Dim] = []
+        points: list[Dim] = []
 
         for gate_id in gates_ids:
             gate = grid.get_gate_from_id(gate_id)
             gate_pos = grid.get_pos_expect(gate_id)
 
             if net_id in gate.inputs:
-                route.append(gate_pos + gate.in_coords)
+                points.append(gate_pos + gate.in_coords)
 
             if net_id in gate.outputs:
-                route.append(gate_pos + gate.out_coords)
+                points.append(gate_pos + gate.out_coords)
 
             if net_id in gate.clk_inputs:
-                route.append(gate_pos + gate.clk_coords)
+                points.append(gate_pos + gate.clk_coords)
 
-        routes.append(route)
+        routes[net_id] = points
 
     return routes
+
+
+def create_router_grid(dim: Dim, max_layers: int) -> np.ndarray[int]:
+    return np.full((max_layers, dim.x, dim.y), -1, dtype=np.int32)
 
 
 def create_pred_grid(
@@ -203,10 +208,51 @@ def create_route_inplace(
         pred_grid[cell.loc.x, cell.loc.y, cell.loc.z] = cell.pred
 
 
+def rip_route_inplace(router_grid: np.ndarray[int], route_id: int) -> None:
+    router_grid[router_grid == route_id] = -1
+
+
 def route(grid: GatesGrid, max_layers: int) -> None:
-    router_grid = np.full((max_layers, grid.dim.x, grid.dim.y), -1, dtype=np.int32)
+    router_grid = create_router_grid(grid.dim, max_layers)
 
     routes = construct_routes(grid)
+    route_queue: Queue[tuple[int, list[Dim]]] = Queue()
+    for route_id, points in routes.items():
+        route_queue.put((route_id, points))
 
-    for route_id, points in enumerate(routes):
-        create_route_inplace(router_grid, route_id, points, grid.dim, max_layers)
+    created_routes: set[int] = set()
+
+    log.info(f"Routing {route_queue.qsize()} routes")
+
+    while route_queue.qsize() != 0:
+        route_id, points = route_queue.get()
+        route_created = create_route_inplace(
+            router_grid, route_id, points, grid.dim, max_layers
+        )
+
+        if not route_created:
+            # route_id_to_rip = random.choice(list(created_routes))
+            # log.info(
+            #     f"Unable to route {route_id}, ripping random route {route_id_to_rip}"
+            # )
+
+            # created_routes.remove(route_id_to_rip)
+            # rip_route_inplace(router_grid, route_id_to_rip)
+            # rip_route_inplace(router_grid, route_id)
+
+            # route_queue.put((route_id, points))
+            # route_queue.put((route_id_to_rip, routes[route_id_to_rip]))
+            # log.info(f"Route queue size is now {route_queue.qsize()}")
+
+            log.info(f"Unable to route {route_id} ripping all routes")
+
+            route_queue.put((route_id, points))
+
+            for other_route_id in created_routes:
+                route_queue.put((other_route_id, routes[other_route_id]))
+
+            router_grid = create_router_grid(grid.dim, max_layers)
+            created_routes = set()
+        else:
+            log.info(f"Created route {route_id}")
+            created_routes.add(route_id)
